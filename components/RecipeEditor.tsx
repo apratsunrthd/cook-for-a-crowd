@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { IngredientsField } from "@/components/IngredientsField";
+import { PanRescaleField } from "@/components/PanRescaleField";
 import { PanSizeField } from "@/components/PanSizeField";
 import { attachRecipeAction, getEventHeadcountAction } from "@/lib/actions/events";
 import { saveRecipeAction } from "@/lib/actions/recipes";
@@ -58,6 +59,10 @@ export function RecipeEditor({
   const [instructions, setInstructions] = useState(draft?.instructions ?? "");
   const [imageUrl] = useState(draft?.imageUrl ?? null);
   const [panSize, setPanSize] = useState<PanSize | null>(initialPanSize(initialDraft));
+  // Bumped whenever panSize is overwritten from OUTSIDE PanSizeField (i.e.
+  // by PanRescaleField), forcing it to remount and re-seed its display from
+  // the new value instead of showing a stale preset.
+  const [panSizeVersion, setPanSizeVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [course, setCourse] = useState<Course>("main");
@@ -176,7 +181,21 @@ export function RecipeEditor({
 
       <IngredientsField id="ingredients" value={ingredientsText} onChange={setIngredientsText} />
 
-      <PanSizeField value={panSize} onChange={setPanSize} />
+      <PanSizeField key={panSizeVersion} value={panSize} onChange={setPanSize} />
+
+      {panSize && (
+        <PanRescaleField
+          panSize={panSize}
+          servings={servings === "" ? null : Number(servings)}
+          ingredients={parsedIngredients}
+          onApply={({ panSize: newPanSize, servings: newServings, ingredientLines }) => {
+            setPanSize(newPanSize);
+            setPanSizeVersion((v) => v + 1);
+            if (newServings !== null) setServings(newServings);
+            setIngredientsText(ingredientLines.join("\n"));
+          }}
+        />
+      )}
 
       <div>
         <label className="block text-sm font-medium mb-1" htmlFor="instructions">

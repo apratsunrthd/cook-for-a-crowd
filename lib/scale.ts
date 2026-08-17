@@ -72,13 +72,14 @@ export function scaleRecipe(recipe: Recipe, targetHeadcount: number): ScaledIngr
 }
 
 /**
- * Renders a scaled ingredient as a display line, e.g. "1 1/2 - 2 cups flour
- * (200 g)" for a range, or "3 large eggs, beaten" for lines with no leading
- * quantity (shown as-is via `raw` since there's nothing to scale). The gram
- * weight is appended whenever it could be determined -- see
- * ingredientWeight.ts.
+ * Renders a scaled ingredient's quantity/unit/description as a plain,
+ * re-parseable line, e.g. "1 1/2-2 cups flour" for a range, or "3 large
+ * eggs, beaten" for lines with no leading quantity (shown as-is via `raw`
+ * since there's nothing to scale). No gram suffix -- this is the form used
+ * to repopulate an editable ingredients textbox, where a "(200 g)" would
+ * get baked permanently into the description on the next parse.
  */
-export function formatScaledIngredient(ingredient: ScaledIngredient): string {
+export function formatScaledIngredientLine(ingredient: ScaledIngredient): string {
   if (ingredient.quantity === null) {
     return ingredient.raw;
   }
@@ -91,6 +92,14 @@ export function formatScaledIngredient(ingredient: ScaledIngredient): string {
   const parts = [qty, unit, ingredient.description].filter(
     (part): part is string => !!part && part.length > 0,
   );
-  const line = parts.join(" ");
+  return parts.join(" ");
+}
+
+/**
+ * Renders a scaled ingredient as a display line, with its gram weight
+ * appended whenever it could be determined -- see ingredientWeight.ts.
+ */
+export function formatScaledIngredient(ingredient: ScaledIngredient): string {
+  const line = formatScaledIngredientLine(ingredient);
   return ingredient.grams !== null ? `${line} (${formatGrams(ingredient.grams)})` : line;
 }

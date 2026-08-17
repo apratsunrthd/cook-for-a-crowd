@@ -17,6 +17,14 @@ function presetIdForSize(size: PanSize | null): string {
   return match?.id ?? CUSTOM_PRESET_ID;
 }
 
+/**
+ * Seeds its preset/shape/dimension display state from `value` only on
+ * mount -- `value` is expected to change from THIS component's own
+ * `onChange` calls afterward. If a caller needs to overwrite `value` from
+ * outside (e.g. applying a different pan via PanRescaleField), pass a
+ * changing `key` prop so React remounts this component with fresh state
+ * instead of leaving the displayed preset stale.
+ */
 export function PanSizeField({
   value,
   onChange,

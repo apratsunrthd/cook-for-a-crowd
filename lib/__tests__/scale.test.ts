@@ -5,6 +5,7 @@ import {
   batchesNeeded,
   effectiveHeadcount,
   formatScaledIngredient,
+  formatScaledIngredientLine,
   roundUpToWholeBatches,
   scaleFactor,
   scaleIngredient,
@@ -168,5 +169,17 @@ describe("formatScaledIngredient", () => {
   it("falls back to the raw line for needs-review ingredients", () => {
     const scaled = scaleIngredient(parseIngredientLine("Salt to taste"), 3);
     expect(formatScaledIngredient(scaled)).toBe("Salt to taste");
+  });
+});
+
+describe("formatScaledIngredientLine", () => {
+  it("never includes a gram suffix, even when a weight is known", () => {
+    const scaled = scaleIngredient(parseIngredientLine("2 cups flour"), 1.5);
+    expect(formatScaledIngredientLine(scaled)).toBe("3 cups flour");
+  });
+
+  it("stays re-parseable as a raw ingredient line", () => {
+    const scaled = scaleIngredient(parseIngredientLine("2-3 tablespoons olive oil"), 2);
+    expect(formatScaledIngredientLine(scaled)).toBe("4-6 tablespoons olive oil");
   });
 });
