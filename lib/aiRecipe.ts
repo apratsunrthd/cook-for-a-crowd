@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { parseIngredientLines } from "./ingredientParser";
+import { guessPanSize } from "./panSizeExtract";
 import type { ImportedRecipeDraft } from "./recipeImport";
 
 // Sonnet 5, not Opus -- this is a small structured-output call, not a task
@@ -93,5 +94,6 @@ export async function generateRecipeWithAI(prompt: string): Promise<ImportedReci
     ingredients: parseIngredientLines(data.ingredients),
     instructions: data.instructions,
     imageUrl: null,
+    panSize: guessPanSize({ name: data.name, instructions: data.instructions, ingredientLines: data.ingredients }),
   };
 }

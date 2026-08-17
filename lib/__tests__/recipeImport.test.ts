@@ -59,6 +59,20 @@ describe("parseRecipeFromHtml", () => {
     );
   });
 
+  it("extracts a pan size mentioned in the instructions", () => {
+    const html = `<html><head><script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"Recipe","name":"Casserole","recipeYield":"8","recipeIngredient":["1 cup rice"],"recipeInstructions":"Pour into a greased 9x13-inch baking dish and bake at 350F."}
+    </script></head></html>`;
+    const draft = parseRecipeFromHtml(html, "https://example-food-site.com/casserole");
+    expect(draft.panSize).toEqual({ shape: "rectangle", widthIn: 9, heightIn: 13 });
+  });
+
+  it("leaves pan size null when nothing in the recipe mentions one", () => {
+    const html = loadFixture("graph-wrapped.html");
+    const draft = parseRecipeFromHtml(html, "https://example-food-site.com/weeknight-chili");
+    expect(draft.panSize).toBeNull();
+  });
+
   it("tolerates malformed JSON-LD elsewhere on the page and still finds the recipe", () => {
     const html = `
       <html><head>

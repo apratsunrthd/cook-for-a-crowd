@@ -1,5 +1,7 @@
 import * as cheerio from "cheerio";
 import { parseIngredientLines } from "./ingredientParser";
+import { guessPanSize } from "./panSizeExtract";
+import type { PanSize } from "./panSize";
 import type { ParsedIngredient } from "./types";
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -16,6 +18,7 @@ export interface ImportedRecipeDraft {
   ingredients: ParsedIngredient[];
   instructions: string | null;
   imageUrl: string | null;
+  panSize: PanSize | null;
 }
 
 export class RecipeImportError extends Error {
@@ -124,15 +127,18 @@ export function parseRecipeFromHtml(html: string, sourceUrl: string | null): Imp
 
   const { servings, rawText } = parseServings(recipeNode["recipeYield"]);
   const name = typeof recipeNode["name"] === "string" ? recipeNode["name"] : "";
+  const ingredientLines = extractIngredientLines(recipeNode);
+  const instructions = extractInstructions(recipeNode);
 
   return {
     name,
     sourceUrl,
     servings,
     rawYieldText: rawText,
-    ingredients: parseIngredientLines(extractIngredientLines(recipeNode)),
-    instructions: extractInstructions(recipeNode),
+    ingredients: parseIngredientLines(ingredientLines),
+    instructions,
     imageUrl: firstString(recipeNode["image"]),
+    panSize: guessPanSize({ name, instructions, ingredientLines }),
   };
 }
 

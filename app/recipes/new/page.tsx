@@ -39,6 +39,7 @@ function NewRecipeForm() {
       ingredientLines: data.ingredients.map((i) => i.raw),
       instructions: data.instructions,
       imageUrl: data.imageUrl,
+      panSize: data.panSize,
     });
     setStarted(true);
   }

@@ -18,6 +18,7 @@ export interface RecipeDraft {
   ingredientLines: string[];
   instructions: string | null;
   imageUrl: string | null;
+  panSize: PanSize | null;
 }
 
 function recipeToDraft(recipe: Recipe): RecipeDraft {
@@ -29,6 +30,7 @@ function recipeToDraft(recipe: Recipe): RecipeDraft {
     ingredientLines: recipe.ingredients.map((i) => i.raw),
     instructions: recipe.instructions,
     imageUrl: recipe.imageUrl,
+    panSize: recipe.panSize,
   };
 }
 

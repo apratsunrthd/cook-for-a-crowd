@@ -31,6 +31,18 @@ describe("parseRecipeFromPlainText", () => {
     expect(draft.instructions).not.toContain("calories");
   });
 
+  it("picks up a pan size mentioned in the instructions", () => {
+    const text = `Poppy Seed Chicken Casserole\nServes 8\nIngredients\n3 cups cooked shredded chicken\nInstructions\nMix chicken, soup, and sour cream in a 9x13 pan.\nTop with crackers and bake at 350F.`;
+    const draft = parseRecipeFromPlainText(text);
+    expect(draft.panSize).toEqual({ shape: "rectangle", widthIn: 9, heightIn: 13 });
+  });
+
+  it("leaves pan size null when nothing mentions one", () => {
+    const text = `Chili\nIngredients\n2 lbs ground beef\nInstructions\nSimmer for an hour.`;
+    const draft = parseRecipeFromPlainText(text);
+    expect(draft.panSize).toBeNull();
+  });
+
   it("handles 'Directions' as an alternate instructions heading", () => {
     const text = `Pancakes\nIngredients\n2 cups flour\n1 cup milk\nDirections\nMix and cook.`;
     const draft = parseRecipeFromPlainText(text);

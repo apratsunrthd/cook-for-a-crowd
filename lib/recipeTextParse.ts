@@ -1,4 +1,5 @@
 import { parseIngredientLines } from "./ingredientParser";
+import { guessPanSize } from "./panSizeExtract";
 import type { ImportedRecipeDraft } from "./recipeImport";
 
 const INGREDIENT_HEADING = /^ingredients?\b/i;
@@ -49,6 +50,7 @@ export function parseRecipeFromPlainText(text: string): ImportedRecipeDraft {
   }
 
   const yieldMatch = text.match(YIELD_PATTERN);
+  const instructions = instructionLines.length > 0 ? instructionLines.join("\n") : null;
 
   return {
     name,
@@ -56,8 +58,9 @@ export function parseRecipeFromPlainText(text: string): ImportedRecipeDraft {
     servings: yieldMatch ? Number(yieldMatch[1]) : null,
     rawYieldText: yieldMatch ? yieldMatch[0] : null,
     ingredients: parseIngredientLines(ingredientLines),
-    instructions: instructionLines.length > 0 ? instructionLines.join("\n") : null,
+    instructions,
     imageUrl: null,
+    panSize: guessPanSize({ name, instructions, ingredientLines }),
   };
 }
 
