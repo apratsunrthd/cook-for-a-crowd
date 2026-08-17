@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { parseIngredientLines } from "./ingredientParser";
+import { toolInputToPanSize } from "./panSizeAI";
 import { guessPanSize } from "./panSizeExtract";
 import type { ImportedRecipeDraft } from "./recipeImport";
 
@@ -24,6 +25,15 @@ const RECIPE_TOOL: Anthropic.Tool = {
         description: 'Ingredient lines in standard recipe format, e.g. "2 cups flour"',
       },
       instructions: { type: "string", description: "Step-by-step cooking instructions" },
+      panShape: {
+        type: "string",
+        enum: ["rectangle", "round"],
+        description:
+          "If this recipe bakes in a specific pan/dish, its shape. A square pan is \"rectangle\" with equal width and height. Omit entirely for stovetop or no-bakeware recipes.",
+      },
+      panWidthIn: { type: "number", description: "Pan width in inches, when panShape is rectangle." },
+      panHeightIn: { type: "number", description: "Pan length in inches, when panShape is rectangle." },
+      panDiameterIn: { type: "number", description: "Pan diameter in inches, when panShape is round." },
     },
     required: ["name", "servings", "ingredients", "instructions"],
     additionalProperties: false,
@@ -84,7 +94,20 @@ export async function generateRecipeWithAI(prompt: string): Promise<ImportedReci
     servings: number;
     ingredients: string[];
     instructions: string;
+    panShape?: "rectangle" | "round";
+    panWidthIn?: number;
+    panHeightIn?: number;
+    panDiameterIn?: number;
   };
+
+  const panSize =
+    toolInputToPanSize({
+      found: !!data.panShape,
+      shape: data.panShape,
+      widthIn: data.panWidthIn,
+      heightIn: data.panHeightIn,
+      diameterIn: data.panDiameterIn,
+    }) ?? guessPanSize({ name: data.name, instructions: data.instructions, ingredientLines: data.ingredients });
 
   return {
     name: data.name,
@@ -94,6 +117,6 @@ export async function generateRecipeWithAI(prompt: string): Promise<ImportedReci
     ingredients: parseIngredientLines(data.ingredients),
     instructions: data.instructions,
     imageUrl: null,
-    panSize: guessPanSize({ name: data.name, instructions: data.instructions, ingredientLines: data.ingredients }),
+    panSize,
   };
 }

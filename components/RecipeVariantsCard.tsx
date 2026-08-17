@@ -2,19 +2,23 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { IngredientsField } from "@/components/IngredientsField";
 import { createVariantAction, deleteVariantAction, updateVariantAction } from "@/lib/actions/events";
 import { detachRecipeAction } from "@/lib/actions/recipes";
 import { parseIngredientLines } from "@/lib/ingredientParser";
 import { PAN_PRESETS, panAreaRatio, type PanSize } from "@/lib/panSize";
-import { formatScaledIngredient } from "@/lib/scale";
+import { batchesNeeded, formatScaledIngredient, scaleIngredients } from "@/lib/scale";
 import type { ParsedIngredient, RecipeVariant, ScaledIngredient } from "@/lib/types";
 
 export interface VariantWithIngredients {
   variant: RecipeVariant;
   ingredients: ScaledIngredient[] | null;
   error: string | null;
+}
+
+function pluralize(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
 export function RecipeVariantsCard({
@@ -118,6 +122,19 @@ function VariantRow({
   const [ingredientsText, setIngredientsText] = useState(variant.ingredients.map((i) => i.raw).join("\n"));
   const [saving, setSaving] = useState(false);
 
+  const savedBatches = recipeServings ? batchesNeeded(variant.servings, recipeServings) : null;
+  const draftBatches = recipeServings ? batchesNeeded(servings, recipeServings) : null;
+  const draftCoversWhole = recipeServings && draftBatches ? servings === draftBatches * recipeServings : true;
+
+  // Live preview computed from the current (possibly unsaved) form state,
+  // so editing servings, the ingredient list, or picking a different pan
+  // size all show their effect immediately instead of only after Save.
+  const livePreview = useMemo(() => {
+    if (!recipeServings || recipeServings <= 0) return null;
+    const factor = servings / recipeServings;
+    return scaleIngredients(parseIngredientLines(ingredientsText.split("\n")), factor);
+  }, [ingredientsText, servings, recipeServings]);
+
   async function save() {
     setSaving(true);
     await updateVariantAction(eventId, variant.id, {
@@ -131,6 +148,8 @@ function VariantRow({
     router.refresh();
   }
 
+  const displayIngredients = editing ? livePreview : ingredients;
+
   return (
     <div className="rounded-md bg-black/[.02] dark:bg-white/[.04] p-3 space-y-2">
       <div className="flex items-start justify-between gap-3">
@@ -138,6 +157,7 @@ function VariantRow({
           {showLabel && <div className="text-sm font-medium">{variant.label}</div>}
           <div className="text-xs text-black/60 dark:text-white/60">
             {variant.servings} people
+            {savedBatches !== null && ` · ${pluralize(savedBatches, "pan")}`}
             {variant.notes && <span className="italic"> &middot; {variant.notes}</span>}
           </div>
         </div>
@@ -199,6 +219,25 @@ function VariantRow({
             </div>
           </div>
 
+          {recipeServings && draftBatches !== null && (
+            <p className="text-xs text-black/60 dark:text-white/60">
+              &asymp; {(servings / recipeServings).toFixed(2)}x the recipe &middot; {pluralize(draftBatches, "pan")}
+              {!draftCoversWhole && (
+                <>
+                  {" "}
+                  -- {draftBatches * recipeServings} people if you round up.{" "}
+                  <button
+                    type="button"
+                    onClick={() => setServings(draftBatches * recipeServings)}
+                    className="underline font-medium"
+                  >
+                    Round up to whole pans
+                  </button>
+                </>
+              )}
+            </p>
+          )}
+
           {recipePanSize && recipeServings && (
             <PanSizeCalculator
               recipeServings={recipeServings}
@@ -229,7 +268,7 @@ function VariantRow({
         <p className="text-sm text-amber-600 dark:text-amber-400">{error}</p>
       ) : (
         <ul className="text-sm space-y-1">
-          {ingredients?.map((ingredient, idx) => (
+          {displayIngredients?.map((ingredient, idx) => (
             <li key={idx} className={ingredient.needsReview ? "text-amber-600 dark:text-amber-400" : undefined}>
               {formatScaledIngredient(ingredient)}
             </li>
@@ -254,7 +293,7 @@ function PanSizeCalculator({
 
   const targetPreset = PAN_PRESETS.find((p) => p.id === targetPresetId) ?? PAN_PRESETS[0];
   const ratio = panAreaRatio(recipePanSize, targetPreset.size);
-  const suggestedServings = Math.round(recipeServings * ratio * 100) / 100;
+  const suggestedServings = Math.round(recipeServings * ratio);
 
   if (!show) {
     return (
@@ -283,7 +322,7 @@ function PanSizeCalculator({
       </span>
       <button
         type="button"
-        onClick={() => onApply(Math.round(suggestedServings))}
+        onClick={() => onApply(suggestedServings)}
         className="rounded-md border border-black/20 dark:border-white/20 px-2 py-1 font-medium"
       >
         Use this

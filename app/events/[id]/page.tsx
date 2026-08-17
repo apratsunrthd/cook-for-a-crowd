@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddRecipeToEvent } from "@/components/AddRecipeToEvent";
+import { CookPlan } from "@/components/CookPlan";
 import { DeleteEventButton } from "@/components/DeleteEventButton";
 import { RecipeVariantsCard, type VariantWithIngredients } from "@/components/RecipeVariantsCard";
 import { ShoppingList } from "@/components/ShoppingList";
@@ -112,6 +113,12 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
           })
         )}
       </section>
+
+      {dishes.length > 0 && (
+        <section className="print:mt-0">
+          <CookPlan dishes={dishes} />
+        </section>
+      )}
 
       <section className="print:mt-0">
         <ShoppingList items={shoppingList} eventName={event.name} />

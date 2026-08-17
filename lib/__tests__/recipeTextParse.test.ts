@@ -74,4 +74,55 @@ describe("parseRecipeFromPlainText", () => {
   it("does not throw on empty input", () => {
     expect(() => parseRecipeFromPlainText("")).not.toThrow();
   });
+
+  it("regression: real-world AllRecipes-style paste with a single-dimension square pan", () => {
+    // Exact text a user pasted that previously failed pan-size detection --
+    // "9-inch square baking dish" has one dimension, not "WxH".
+    const text = `Poppy Seed Chicken Casserole
+This poppy seed chicken casserole is very simple to make with shredded chicken and an easy creamy sauce. You can use leftover cooked chicken if you have it.
+
+Submitted by Callie Wilson Wolfe
+Prep Time: 20 mins
+Cook Time: 50 mins
+Total Time: 1 hr 10 mins
+Servings: 6
+Yield: 1 (9-inch) casserole
+Ingredients
+4 skinless, boneless chicken breast halves
+
+1 sleeve buttery round crackers (such as Ritz), crushed
+
+1/2 cup butter, melted
+
+1 teaspoon poppy seeds, or more if desired
+
+1 (10.5 ounce) can condensed cream of chicken soup
+
+1 (8 ounce) container sour cream
+
+2 cups shredded Cheddar cheese
+
+Directions
+Gather all ingredients.
+
+Place chicken breasts into a large pot; cover with water and bring to a boil over high heat. Reduce heat to medium, cover, and simmer until chicken is no longer pink in the center, about 20 minutes. Drain; shred chicken with two forks.
+
+Preheat the oven to 350 degrees F (175 degrees C). Mix crackers, melted butter, and poppy seeds together in a large bowl until combined; set aside.
+
+Stir condensed soup and sour cream together in a medium bowl; pour 1/2 of the mixture into a 9-inch square baking dish.
+
+Add shredded chicken in an even layer.
+
+Top with remaining soup mixture. Sprinkle with Cheddar cheese.
+
+Top with cracker mixture.
+
+Bake in the preheated oven until cheese has melted and the sauce is bubbly, 25 to 30 minutes.
+
+Cook's Note
+You can use about 4 cups shredded leftover or rotisserie chicken to save time.`;
+    const draft = parseRecipeFromPlainText(text);
+    expect(draft.panSize).toEqual({ shape: "rectangle", widthIn: 9, heightIn: 9 });
+    expect(draft.ingredients.length).toBeGreaterThanOrEqual(6);
+  });
 });

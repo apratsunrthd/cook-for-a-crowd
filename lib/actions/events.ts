@@ -12,7 +12,7 @@ import {
 } from "../repo/eventRecipes";
 import { type EventInput, createEvent, deleteEvent, updateEvent, getEvent } from "../repo/events";
 import { getRecipe } from "../repo/recipes";
-import { effectiveHeadcount } from "../scale";
+import { effectiveHeadcount, roundUpToWholeBatches } from "../scale";
 import type { Course } from "../types";
 import type { ActionResult } from "./recipes";
 
@@ -42,16 +42,23 @@ export async function deleteEventAction(id: number): Promise<void> {
   revalidatePath("/");
 }
 
-/** Attaches a recipe to an event's meal plan and gives it a starting "Standard" variant if it doesn't have one yet. */
+/**
+ * Attaches a recipe to an event's meal plan and gives it a starting
+ * "Standard" variant if it doesn't have one yet. The default variant rounds
+ * the target headcount up to a whole number of batches of the recipe (e.g.
+ * needing 57 people from a 6-serving recipe defaults to 10 batches / 60
+ * people, not a fractional 9.5x scale) so you never end up short.
+ */
 export async function attachRecipeAction(
   eventId: number,
   recipeId: number,
   course: Course,
-  defaultServings: number,
+  targetHeadcount: number,
 ): Promise<void> {
   const db = getDb();
   const recipe = getRecipe(db, recipeId);
   attachRecipe(db, eventId, recipeId, course);
+  const defaultServings = roundUpToWholeBatches(targetHeadcount, recipe?.servings ?? null);
   ensureDefaultVariant(db, eventId, recipeId, defaultServings, recipe?.ingredients ?? []);
   revalidatePath(`/events/${eventId}`);
 }

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { parseIngredientLine } from "../ingredientParser";
 import {
   InvalidServingsError,
+  batchesNeeded,
   effectiveHeadcount,
   formatScaledIngredient,
+  roundUpToWholeBatches,
   scaleFactor,
   scaleIngredient,
   scaleRecipe,
@@ -29,6 +31,41 @@ describe("effectiveHeadcount", () => {
 
   it("handles a zero buffer", () => {
     expect(effectiveHeadcount({ rsvpCount: 25, bufferMode: "flat", bufferValue: 0 })).toBe(25);
+  });
+});
+
+describe("batchesNeeded", () => {
+  it("rounds up rather than leaving people short", () => {
+    // 57 people, 6 per pan -> 9 pans only covers 54; must be 10.
+    expect(batchesNeeded(57, 6)).toBe(10);
+  });
+
+  it("returns exactly the ratio when it divides evenly", () => {
+    expect(batchesNeeded(48, 8)).toBe(6);
+  });
+
+  it("always needs at least 1 batch", () => {
+    expect(batchesNeeded(3, 8)).toBe(1);
+  });
+
+  it("falls back to 1 when servings-per-batch is null or invalid", () => {
+    expect(batchesNeeded(57, null)).toBe(1);
+    expect(batchesNeeded(57, 0)).toBe(1);
+  });
+});
+
+describe("roundUpToWholeBatches", () => {
+  it("returns the headcount actually covered by whole batches", () => {
+    expect(roundUpToWholeBatches(57, 6)).toBe(60); // 10 batches x 6
+  });
+
+  it("matches the target exactly when it divides evenly", () => {
+    expect(roundUpToWholeBatches(48, 8)).toBe(48);
+  });
+
+  it("returns the target unchanged when servings-per-batch is null or invalid", () => {
+    expect(roundUpToWholeBatches(57, null)).toBe(57);
+    expect(roundUpToWholeBatches(57, 0)).toBe(57);
   });
 });
 

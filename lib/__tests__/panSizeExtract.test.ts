@@ -21,6 +21,11 @@ describe("extractPanSizeFromText", () => {
       "Arrange on a full sheet pan for a large batch.",
       { shape: "rectangle", widthIn: 18, heightIn: 26 },
     ],
+    [
+      "pour 1/2 of the mixture into a 9-inch square baking dish.",
+      { shape: "rectangle", widthIn: 9, heightIn: 9 },
+    ],
+    ["Bake in an 8 inch square pan.", { shape: "rectangle", widthIn: 8, heightIn: 8 }],
   ])("extracts pan size from %s", (text, expected) => {
     expect(extractPanSizeFromText(text)).toEqual(expected);
   });

@@ -22,6 +22,23 @@ export class InvalidServingsError extends Error {
 }
 
 /**
+ * How many whole batches (pans) of a recipe you need to cover a headcount --
+ * always rounds up, since you can't bake a fraction of a pan. Feeding 57
+ * people with a recipe that serves 6 needs 10 batches (60 people covered),
+ * not 9 (only 54).
+ */
+export function batchesNeeded(targetHeadcount: number, servingsPerBatch: number | null): number {
+  if (!servingsPerBatch || servingsPerBatch <= 0) return 1;
+  return Math.ceil(targetHeadcount / servingsPerBatch);
+}
+
+/** The headcount actually covered once you round up to whole batches -- may exceed the target. */
+export function roundUpToWholeBatches(targetHeadcount: number, servingsPerBatch: number | null): number {
+  if (!servingsPerBatch || servingsPerBatch <= 0) return targetHeadcount;
+  return batchesNeeded(targetHeadcount, servingsPerBatch) * servingsPerBatch;
+}
+
+/**
  * The multiplier to apply to every ingredient quantity in a recipe so it
  * feeds `targetHeadcount` people instead of its native `servings`.
  */

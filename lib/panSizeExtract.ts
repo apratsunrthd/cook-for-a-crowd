@@ -28,6 +28,13 @@ export function extractPanSizeFromText(text: string): PanSize | null {
     return { shape: "round", diameterIn: Number(roundMatch[1]) };
   }
 
+  // Square, given as a single dimension: "9-inch square baking dish", "8 inch square pan"
+  const squareMatch = text.match(/(\d+(?:\.\d+)?)[\s-]*(?:"|inch(?:es)?)\s*square\b/i);
+  if (squareMatch) {
+    const side = Number(squareMatch[1]);
+    return { shape: "rectangle", widthIn: side, heightIn: side };
+  }
+
   // Rectangular: "9x13 pan", "9x13-inch baking dish", "13 x 9 inch pan", "9-by-13"
   // Only accepted when it's clearly a pan measurement -- an inch/quote marker,
   // or a pan/dish word nearby -- so we don't mistake "make 2x the recipe" or

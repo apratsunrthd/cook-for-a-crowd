@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { generateRecipeWithAI, RecipeGenerationError } from "../aiRecipe";
 import { getDb } from "../db";
+import { fillPanSizeGap } from "../panSizeAI";
 import { detachRecipe as detachRecipeFromEvent } from "../repo/eventRecipes";
 import {
   DuplicateSourceUrlError,
@@ -40,7 +41,7 @@ export async function importRecipeDraftAction(pasted: string): Promise<ActionRes
   if (BARE_URL_PATTERN.test(trimmed) && !trimmed.includes("\n")) {
     try {
       const draft = await importRecipeFromUrl(trimmed);
-      return { ok: true, data: draft };
+      return { ok: true, data: await fillPanSizeGap(draft) };
     } catch (err) {
       if (err instanceof RecipeImportError) {
         return {
@@ -56,7 +57,7 @@ export async function importRecipeDraftAction(pasted: string): Promise<ActionRes
     const draft = HTML_PATTERN.test(trimmed)
       ? parseRecipeFromHtml(trimmed, null)
       : parseRecipeFromPlainText(trimmed);
-    return { ok: true, data: draft };
+    return { ok: true, data: await fillPanSizeGap(draft) };
   } catch (err) {
     if (err instanceof RecipeImportError) {
       return { ok: false, error: err.message };
