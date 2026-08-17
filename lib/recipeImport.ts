@@ -10,7 +10,7 @@ const USER_AGENT =
 
 export interface ImportedRecipeDraft {
   name: string;
-  sourceUrl: string;
+  sourceUrl: string | null;
   servings: number | null;
   rawYieldText: string | null;
   ingredients: ParsedIngredient[];
@@ -113,7 +113,7 @@ function extractInstructions(node: Record<string, unknown>): string | null {
 }
 
 /** Parses a recipe from already-fetched HTML. Exposed separately from `importRecipeFromUrl` so tests can run offline against saved fixtures. */
-export function parseRecipeFromHtml(html: string, sourceUrl: string): ImportedRecipeDraft {
+export function parseRecipeFromHtml(html: string, sourceUrl: string | null): ImportedRecipeDraft {
   const recipeNode = findRecipeNode(html);
   if (!recipeNode) {
     throw new RecipeImportError(

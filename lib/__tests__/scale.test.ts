@@ -86,6 +86,7 @@ describe("scaleRecipe", () => {
       ingredients: [parseIngredientLine("2 cups flour"), parseIngredientLine("1 tsp salt")],
       instructions: null,
       imageUrl: null,
+      panSize: null,
       createdAt: "",
       updatedAt: "",
       ...overrides,

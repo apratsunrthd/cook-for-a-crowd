@@ -43,9 +43,13 @@ export function scaleIngredient(ingredient: ParsedIngredient, factor: number): S
   };
 }
 
+export function scaleIngredients(ingredients: ParsedIngredient[], factor: number): ScaledIngredient[] {
+  return ingredients.map((ingredient) => scaleIngredient(ingredient, factor));
+}
+
 export function scaleRecipe(recipe: Recipe, targetHeadcount: number): ScaledIngredient[] {
   const factor = scaleFactor(recipe, targetHeadcount);
-  return recipe.ingredients.map((ingredient) => scaleIngredient(ingredient, factor));
+  return scaleIngredients(recipe.ingredients, factor);
 }
 
 /**

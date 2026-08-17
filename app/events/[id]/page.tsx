@@ -2,15 +2,24 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddRecipeToEvent } from "@/components/AddRecipeToEvent";
 import { DeleteEventButton } from "@/components/DeleteEventButton";
-import { EventRecipeCard } from "@/components/EventRecipeCard";
+import { RecipeVariantsCard, type VariantWithIngredients } from "@/components/RecipeVariantsCard";
 import { ShoppingList } from "@/components/ShoppingList";
 import { getDb } from "@/lib/db";
-import { listEventRecipes } from "@/lib/repo/eventRecipes";
+import { listAllVariantsForEvent, listEventRecipes } from "@/lib/repo/eventRecipes";
 import { getEvent } from "@/lib/repo/events";
 import { listRecipes } from "@/lib/repo/recipes";
-import { InvalidServingsError, effectiveHeadcount, scaleRecipe } from "@/lib/scale";
+import { InvalidServingsError, effectiveHeadcount, scaleFactor, scaleIngredients } from "@/lib/scale";
 import { aggregateIngredients, type RecipeIngredients } from "@/lib/shoppingList";
-import type { ScaledIngredient } from "@/lib/types";
+import type { Course, Recipe, ScaledIngredient } from "@/lib/types";
+
+const COURSE_LABELS: Record<Course, string> = { main: "Mains", side: "Sides", dessert: "Desserts" };
+const COURSE_ORDER: Course[] = ["main", "side", "dessert"];
+
+interface DishWithVariants {
+  recipe: Recipe;
+  course: Course;
+  variants: VariantWithIngredients[];
+}
 
 export default async function EventDetailPage({ params }: PageProps<"/events/[id]">) {
   const { id } = await params;
@@ -20,23 +29,33 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
 
   const headcount = effectiveHeadcount(event);
   const attached = listEventRecipes(db, event.id);
+  const allVariants = listAllVariantsForEvent(db, event.id);
   const allRecipes = listRecipes(db);
   const attachedIds = new Set(attached.map((a) => a.recipe.id));
   const availableRecipes = allRecipes.filter((r) => !attachedIds.has(r.id));
 
-  const scaledByRecipe = attached.map(({ eventRecipe, recipe }) => {
-    const target = eventRecipe.headcountOverride ?? headcount;
-    try {
-      return { recipe, eventRecipe, ingredients: scaleRecipe(recipe, target), error: null as string | null };
-    } catch (err) {
-      const message = err instanceof InvalidServingsError ? err.message : "Couldn't scale this recipe.";
-      return { recipe, eventRecipe, ingredients: null, error: message };
-    }
+  const dishes: DishWithVariants[] = attached.map(({ eventRecipe, recipe }) => {
+    const variantsForRecipe = allVariants.filter((v) => v.recipeId === recipe.id);
+    const variants: VariantWithIngredients[] = variantsForRecipe.map((variant) => {
+      try {
+        const factor = scaleFactor(recipe, variant.servings);
+        return { variant, ingredients: scaleIngredients(variant.ingredients, factor), error: null };
+      } catch (err) {
+        const message = err instanceof InvalidServingsError ? err.message : "Couldn't scale this recipe.";
+        return { variant, ingredients: null, error: message };
+      }
+    });
+    return { recipe, course: eventRecipe.course, variants };
   });
 
-  const shoppingListInputs: RecipeIngredients[] = scaledByRecipe
-    .filter((r): r is typeof r & { ingredients: ScaledIngredient[] } => r.ingredients !== null)
-    .map((r) => ({ recipeName: r.recipe.name, ingredients: r.ingredients }));
+  const shoppingListInputs: RecipeIngredients[] = dishes.flatMap((dish) =>
+    dish.variants
+      .filter((v): v is VariantWithIngredients & { ingredients: ScaledIngredient[] } => v.ingredients !== null)
+      .map((v) => ({
+        recipeName: dish.variants.length > 1 ? `${dish.recipe.name} (${v.variant.label})` : dish.recipe.name,
+        ingredients: v.ingredients,
+      })),
+  );
   const shoppingList = aggregateIngredients(shoppingListInputs);
 
   return (
@@ -62,27 +81,35 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
 
       <section className="space-y-4 print:hidden">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Recipes</h2>
+          <h2 className="text-lg font-semibold">Meal plan</h2>
         </div>
-        <AddRecipeToEvent eventId={event.id} availableRecipes={availableRecipes} />
-        {scaledByRecipe.length === 0 ? (
-          <p className="text-sm text-black/60 dark:text-white/60">No recipes added yet.</p>
+        <AddRecipeToEvent eventId={event.id} defaultHeadcount={headcount} availableRecipes={availableRecipes} />
+        {dishes.length === 0 ? (
+          <p className="text-sm text-black/60 dark:text-white/60">No dishes added yet.</p>
         ) : (
-          <div className="space-y-3">
-            {scaledByRecipe.map(({ recipe, eventRecipe, ingredients, error }) => (
-              <EventRecipeCard
-                key={recipe.id}
-                eventId={event.id}
-                recipeId={recipe.id}
-                recipeName={recipe.name}
-                defaultHeadcount={headcount}
-                headcountOverride={eventRecipe.headcountOverride}
-                notes={eventRecipe.notes}
-                scaledIngredients={ingredients}
-                scalingError={error}
-              />
-            ))}
-          </div>
+          COURSE_ORDER.map((course) => {
+            const dishesForCourse = dishes.filter((d) => d.course === course);
+            if (dishesForCourse.length === 0) return null;
+            return (
+              <div key={course} className="space-y-3">
+                <h3 className="text-sm font-medium uppercase tracking-wide text-black/50 dark:text-white/50">
+                  {COURSE_LABELS[course]}
+                </h3>
+                {dishesForCourse.map((dish) => (
+                  <RecipeVariantsCard
+                    key={dish.recipe.id}
+                    eventId={event.id}
+                    recipeId={dish.recipe.id}
+                    recipeName={dish.recipe.name}
+                    recipeServings={dish.recipe.servings}
+                    recipeIngredients={dish.recipe.ingredients}
+                    recipePanSize={dish.recipe.panSize}
+                    variants={dish.variants}
+                  />
+                ))}
+              </div>
+            );
+          })
         )}
       </section>
 

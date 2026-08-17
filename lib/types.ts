@@ -1,4 +1,7 @@
+import type { PanSize } from "./panSize";
+
 export type BufferMode = "percentage" | "flat";
+export type Course = "main" | "side" | "dessert";
 
 export interface ParsedIngredient {
   raw: string;
@@ -20,6 +23,8 @@ export interface Recipe {
   ingredients: ParsedIngredient[];
   instructions: string | null;
   imageUrl: string | null;
+  /** The recipe's native pan/dish size, if recorded -- lets variants scale by pan-area ratio. */
+  panSize: PanSize | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,8 +43,24 @@ export interface Event {
 export interface EventRecipe {
   eventId: number;
   recipeId: number;
-  headcountOverride: number | null;
+  course: Course;
+}
+
+/**
+ * One way a dish is being made for an event -- e.g. "Standard" (4 batches),
+ * "Gluten-free topping" (1 batch), "No poppy seed" (1 batch). Each variant
+ * scales the recipe independently to its own target headcount and can carry
+ * its own modification notes for a food sensitivity.
+ */
+export interface RecipeVariant {
+  id: number;
+  eventId: number;
+  recipeId: number;
+  label: string;
+  servings: number;
   notes: string | null;
+  /** This variant's own editable copy of the recipe's ingredients -- lets a variant remove or swap an ingredient, not just note the change. */
+  ingredients: ParsedIngredient[];
 }
 
 export interface ScaledIngredient {

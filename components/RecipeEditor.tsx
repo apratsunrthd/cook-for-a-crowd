@@ -1,11 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { attachRecipeAction } from "@/lib/actions/events";
+import { useEffect, useMemo, useState } from "react";
+import { IngredientsField } from "@/components/IngredientsField";
+import { PanSizeField } from "@/components/PanSizeField";
+import { attachRecipeAction, getEventHeadcountAction } from "@/lib/actions/events";
 import { saveRecipeAction } from "@/lib/actions/recipes";
 import { parseIngredientLines } from "@/lib/ingredientParser";
-import type { Recipe } from "@/lib/types";
+import type { PanSize } from "@/lib/panSize";
+import type { Course, Recipe } from "@/lib/types";
 
 export interface RecipeDraft {
   name: string;
@@ -29,6 +32,10 @@ function recipeToDraft(recipe: Recipe): RecipeDraft {
   };
 }
 
+function initialPanSize(initialDraft: RecipeDraft | Recipe | undefined): PanSize | null {
+  return initialDraft && "panSize" in initialDraft ? initialDraft.panSize : null;
+}
+
 export function RecipeEditor({
   recipeId,
   initialDraft,
@@ -48,14 +55,21 @@ export function RecipeEditor({
   const [ingredientsText, setIngredientsText] = useState((draft?.ingredientLines ?? []).join("\n"));
   const [instructions, setInstructions] = useState(draft?.instructions ?? "");
   const [imageUrl] = useState(draft?.imageUrl ?? null);
+  const [panSize, setPanSize] = useState<PanSize | null>(initialPanSize(initialDraft));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [course, setCourse] = useState<Course>("main");
+  const [eventHeadcount, setEventHeadcount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (attachToEventId === undefined) return;
+    getEventHeadcountAction(attachToEventId).then(setEventHeadcount);
+  }, [attachToEventId]);
 
   const parsedIngredients = useMemo(
     () => parseIngredientLines(ingredientsText.split("\n")),
     [ingredientsText],
   );
-  const needsReviewCount = parsedIngredients.filter((i) => i.needsReview).length;
 
   const requiresServings = attachToEventId !== undefined;
 
@@ -78,6 +92,7 @@ export function RecipeEditor({
       ingredients: parsedIngredients,
       instructions: instructions || null,
       imageUrl,
+      panSize,
     });
 
     if (!result.ok) {
@@ -87,7 +102,7 @@ export function RecipeEditor({
     }
 
     if (attachToEventId !== undefined) {
-      await attachRecipeAction(attachToEventId, result.data.id);
+      await attachRecipeAction(attachToEventId, result.data.id, course, eventHeadcount ?? servingsNumber ?? 1);
       router.push(`/events/${attachToEventId}`);
     } else {
       router.push(`/recipes/${result.data.id}`);
@@ -119,6 +134,24 @@ export function RecipeEditor({
         />
       </div>
 
+      {attachToEventId !== undefined && (
+        <div>
+          <label className="block text-sm font-medium mb-1" htmlFor="course">
+            Course
+          </label>
+          <select
+            id="course"
+            value={course}
+            onChange={(e) => setCourse(e.target.value as Course)}
+            className="rounded-md border border-black/20 dark:border-white/20 bg-transparent px-3 py-2 text-sm"
+          >
+            <option value="main">Main</option>
+            <option value="side">Side</option>
+            <option value="dessert">Dessert</option>
+          </select>
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-medium mb-1" htmlFor="servings">
           Servings (how many people this feeds){requiresServings && " *"}
@@ -139,26 +172,9 @@ export function RecipeEditor({
         )}
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1" htmlFor="ingredients">
-          Ingredients (one per line)
-        </label>
-        <textarea
-          id="ingredients"
-          rows={Math.max(6, ingredientsText.split("\n").length + 1)}
-          value={ingredientsText}
-          onChange={(e) => setIngredientsText(e.target.value)}
-          className="w-full rounded-md border border-black/20 dark:border-white/20 bg-transparent px-3 py-2 font-mono text-sm"
-          placeholder={"2 cups flour\n1 tsp salt"}
-        />
-        {needsReviewCount > 0 && (
-          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-            {needsReviewCount} line{needsReviewCount === 1 ? "" : "s"} had no quantity found and
-            won&apos;t be scaled automatically -- shown as-is when the recipe is scaled.
-          </p>
-        )}
-        <IngredientPreview lines={parsedIngredients} />
-      </div>
+      <IngredientsField id="ingredients" value={ingredientsText} onChange={setIngredientsText} />
+
+      <PanSizeField value={panSize} onChange={setPanSize} />
 
       <div>
         <label className="block text-sm font-medium mb-1" htmlFor="instructions">
@@ -183,22 +199,5 @@ export function RecipeEditor({
         {saving ? "Saving…" : attachToEventId !== undefined ? "Save and add to event" : "Save recipe"}
       </button>
     </form>
-  );
-}
-
-function IngredientPreview({ lines }: { lines: ReturnType<typeof parseIngredientLines> }) {
-  if (lines.length === 0) return null;
-  return (
-    <ul className="mt-2 space-y-0.5 text-xs text-black/60 dark:text-white/60">
-      {lines.map((line, idx) => (
-        <li key={idx} className={line.needsReview ? "text-amber-600 dark:text-amber-400" : undefined}>
-          {line.isGroupHeader
-            ? `— ${line.description} —`
-            : line.needsReview
-              ? `⚠ "${line.raw}" (no quantity found)`
-              : `✓ ${line.quantity}${line.quantity2 ? `-${line.quantity2}` : ""} ${line.unit ?? ""} ${line.description}`}
-        </li>
-      ))}
-    </ul>
   );
 }

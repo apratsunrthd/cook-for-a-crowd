@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import type { PanSize } from "../panSize";
 import type { ParsedIngredient, Recipe } from "../types";
 
 interface RecipeRow {
@@ -10,6 +11,7 @@ interface RecipeRow {
   ingredients_json: string;
   instructions: string | null;
   image_url: string | null;
+  pan_size_json: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +26,7 @@ function rowToRecipe(row: RecipeRow): Recipe {
     ingredients: JSON.parse(row.ingredients_json) as ParsedIngredient[],
     instructions: row.instructions,
     imageUrl: row.image_url,
+    panSize: row.pan_size_json ? (JSON.parse(row.pan_size_json) as PanSize) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -37,6 +40,7 @@ export interface RecipeInput {
   ingredients: ParsedIngredient[];
   instructions?: string | null;
   imageUrl?: string | null;
+  panSize?: PanSize | null;
 }
 
 export class DuplicateSourceUrlError extends Error {
@@ -72,8 +76,8 @@ export function createRecipe(db: Database.Database, input: RecipeInput): Recipe 
   }
   const result = db
     .prepare(
-      `INSERT INTO recipes (name, source_url, servings, raw_yield_text, ingredients_json, instructions, image_url)
-       VALUES (@name, @sourceUrl, @servings, @rawYieldText, @ingredientsJson, @instructions, @imageUrl)`,
+      `INSERT INTO recipes (name, source_url, servings, raw_yield_text, ingredients_json, instructions, image_url, pan_size_json)
+       VALUES (@name, @sourceUrl, @servings, @rawYieldText, @ingredientsJson, @instructions, @imageUrl, @panSizeJson)`,
     )
     .run({
       name: input.name,
@@ -83,6 +87,7 @@ export function createRecipe(db: Database.Database, input: RecipeInput): Recipe 
       ingredientsJson: JSON.stringify(input.ingredients),
       instructions: input.instructions ?? null,
       imageUrl: input.imageUrl ?? null,
+      panSizeJson: input.panSize ? JSON.stringify(input.panSize) : null,
     });
   const recipe = getRecipe(db, Number(result.lastInsertRowid));
   if (!recipe) throw new Error("Failed to load recipe after insert");
@@ -105,6 +110,7 @@ export function updateRecipe(db: Database.Database, id: number, input: RecipeInp
        ingredients_json = @ingredientsJson,
        instructions = @instructions,
        image_url = @imageUrl,
+       pan_size_json = @panSizeJson,
        updated_at = datetime('now')
      WHERE id = @id`,
   ).run({
@@ -116,6 +122,7 @@ export function updateRecipe(db: Database.Database, id: number, input: RecipeInp
     ingredientsJson: JSON.stringify(input.ingredients),
     instructions: input.instructions ?? null,
     imageUrl: input.imageUrl ?? null,
+    panSizeJson: input.panSize ? JSON.stringify(input.panSize) : null,
   });
   const recipe = getRecipe(db, id);
   if (!recipe) throw new Error(`Recipe ${id} not found after update`);
