@@ -1,3 +1,4 @@
+import { formatGrams } from "./ingredientWeight";
 import { formatQuantity } from "./quantityFormat";
 import { pluralizeUnit } from "./unitFormat";
 import type { Event, ParsedIngredient, Recipe, ScaledIngredient } from "./types";
@@ -57,6 +58,7 @@ export function scaleIngredient(ingredient: ParsedIngredient, factor: number): S
     unit: ingredient.unit,
     description: ingredient.description,
     needsReview: ingredient.needsReview,
+    grams: ingredient.gramsAtRawQuantity === null ? null : ingredient.gramsAtRawQuantity * factor,
   };
 }
 
@@ -70,9 +72,11 @@ export function scaleRecipe(recipe: Recipe, targetHeadcount: number): ScaledIngr
 }
 
 /**
- * Renders a scaled ingredient as a display line, e.g. "1 1/2 - 2 cups flour"
- * for a range, or "3 large eggs, beaten" for lines with no leading quantity
- * (shown as-is via `raw` since there's nothing to scale).
+ * Renders a scaled ingredient as a display line, e.g. "1 1/2 - 2 cups flour
+ * (200 g)" for a range, or "3 large eggs, beaten" for lines with no leading
+ * quantity (shown as-is via `raw` since there's nothing to scale). The gram
+ * weight is appended whenever it could be determined -- see
+ * ingredientWeight.ts.
  */
 export function formatScaledIngredient(ingredient: ScaledIngredient): string {
   if (ingredient.quantity === null) {
@@ -87,5 +91,6 @@ export function formatScaledIngredient(ingredient: ScaledIngredient): string {
   const parts = [qty, unit, ingredient.description].filter(
     (part): part is string => !!part && part.length > 0,
   );
-  return parts.join(" ");
+  const line = parts.join(" ");
+  return ingredient.grams !== null ? `${line} (${formatGrams(ingredient.grams)})` : line;
 }

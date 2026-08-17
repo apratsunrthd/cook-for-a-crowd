@@ -1,5 +1,5 @@
-import { formatPanSize } from "@/lib/panSize";
-import { batchesNeeded } from "@/lib/scale";
+import { formatPanSize, servingsPerPan, type PanSize } from "@/lib/panSize";
+import { batchesNeeded, formatScaledIngredient, scaleIngredients } from "@/lib/scale";
 import type { Course, Recipe } from "@/lib/types";
 import type { VariantWithIngredients } from "./RecipeVariantsCard";
 
@@ -16,7 +16,9 @@ export interface CookPlanDish {
  * The day-of answer to "what do I actually make" -- distinct from the meal
  * plan (where you set up recipes and variants) and the shopping list (what
  * to buy). Turns each variant's target headcount into a whole pan count,
- * since "make 9.5x the recipe" isn't an instruction a kitchen can follow.
+ * since "make 9.5x the recipe" isn't an instruction a kitchen can follow --
+ * and then breaks the ingredients down PER PAN, since "make 10 pans" is
+ * still not actionable on its own once you're standing at the counter.
  */
 export function CookPlan({ dishes }: { dishes: CookPlanDish[] }) {
   if (dishes.length === 0) return null;
@@ -48,28 +50,63 @@ export function CookPlan({ dishes }: { dishes: CookPlanDish[] }) {
 
 function DishPlan({ dish }: { dish: CookPlanDish }) {
   const { recipe, variants } = dish;
-  const panLabel = recipe.panSize ? ` (${formatPanSize(recipe.panSize)} pan)` : "";
 
   return (
-    <div className="rounded-md border border-black/10 dark:border-white/10 p-3">
+    <div className="rounded-md border border-black/10 dark:border-white/10 p-3 space-y-3">
       <div className="font-medium">{recipe.name}</div>
-      <ul className="mt-1 space-y-1 text-sm">
-        {variants.map(({ variant }) => {
-          const batches = recipe.servings ? batchesNeeded(variant.servings, recipe.servings) : null;
-          const instruction =
-            batches !== null
-              ? `Make ${batches} ${batches === 1 ? "pan" : "pans"}${panLabel}`
-              : `Make enough for ${variant.servings} people`;
-          return (
-            <li key={variant.id}>
-              {instruction}
-              {variants.length > 1 && <> &mdash; {variant.label}</>}
-              {variant.notes && (
-                <span className="italic text-black/60 dark:text-white/60"> ({variant.notes})</span>
-              )}
-            </li>
-          );
-        })}
+      {variants.map(({ variant }) => (
+        <VariantPlan key={variant.id} recipe={recipe} variant={variant} showLabel={variants.length > 1} />
+      ))}
+    </div>
+  );
+}
+
+function VariantPlan({
+  recipe,
+  variant,
+  showLabel,
+}: {
+  recipe: Recipe;
+  variant: VariantWithIngredients["variant"];
+  showLabel: boolean;
+}) {
+  const panSize: PanSize | null = variant.panSize ?? recipe.panSize;
+  const perPanServings =
+    recipe.servings && panSize && recipe.panSize
+      ? servingsPerPan(recipe.servings, recipe.panSize, panSize)
+      : recipe.servings;
+  const batches = perPanServings ? batchesNeeded(variant.servings, perPanServings) : null;
+  const panLabel = panSize ? ` (${formatPanSize(panSize)} pan)` : "";
+
+  const header = (
+    <div className="text-sm font-medium">
+      {batches !== null
+        ? `Make ${batches} ${batches === 1 ? "pan" : "pans"}${panLabel}, ${perPanServings} people per pan`
+        : `Make enough for ${variant.servings} people`}
+      {showLabel && <> &mdash; {variant.label}</>}
+      {variant.notes && (
+        <span className="italic text-black/60 dark:text-white/60"> ({variant.notes})</span>
+      )}
+    </div>
+  );
+
+  if (batches === null || !perPanServings || !recipe.servings) {
+    return header;
+  }
+
+  const perPanFactor = perPanServings / recipe.servings;
+  const perPanIngredients = scaleIngredients(variant.ingredients, perPanFactor);
+
+  return (
+    <div className="space-y-1">
+      {header}
+      <div className="text-xs text-black/60 dark:text-white/60">Per pan:</div>
+      <ul className="text-sm pl-4 list-disc space-y-0.5">
+        {perPanIngredients.map((ingredient, idx) => (
+          <li key={idx} className={ingredient.needsReview ? "text-amber-600 dark:text-amber-400" : undefined}>
+            {formatScaledIngredient(ingredient)}
+          </li>
+        ))}
       </ul>
     </div>
   );

@@ -12,6 +12,8 @@ export interface ParsedIngredient {
   description: string;
   isGroupHeader: boolean;
   needsReview: boolean;
+  /** Weight of this line at its raw (unscaled) quantity, in grams, if it could be determined -- see ingredientWeight.ts. Scales proportionally with quantity. */
+  gramsAtRawQuantity: number | null;
 }
 
 export interface Recipe {
@@ -61,6 +63,8 @@ export interface RecipeVariant {
   notes: string | null;
   /** This variant's own editable copy of the recipe's ingredients -- lets a variant remove or swap an ingredient, not just note the change. */
   ingredients: ParsedIngredient[];
+  /** Overrides the recipe's native pan for this variant only (e.g. baking this batch in a 9x13 instead of the recipe's native 9x9). Null = use the recipe's own pan. */
+  panSize: PanSize | null;
 }
 
 export interface ScaledIngredient {
@@ -71,6 +75,7 @@ export interface ScaledIngredient {
   unit: string | null;
   description: string;
   needsReview: boolean;
+  grams: number | null;
 }
 
 export interface ShoppingListItem {
@@ -81,4 +86,5 @@ export interface ShoppingListItem {
   description: string;
   needsReview: boolean;
   sources: string[];
+  grams: number | null;
 }

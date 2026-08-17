@@ -84,6 +84,11 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Meal plan</h2>
         </div>
+        <p className="text-sm text-black/60 dark:text-white/60">
+          Target headcount: <span className="font-medium text-black dark:text-white">{headcount} people</span>.
+          Each dish below rounds up to whole pans, so an individual dish may end up covering a few more people
+          than the target -- that&apos;s expected, it just means nobody goes hungry.
+        </p>
         <AddRecipeToEvent eventId={event.id} defaultHeadcount={headcount} availableRecipes={availableRecipes} />
         {dishes.length === 0 ? (
           <p className="text-sm text-black/60 dark:text-white/60">No dishes added yet.</p>

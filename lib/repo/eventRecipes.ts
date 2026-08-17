@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import type { PanSize } from "../panSize";
 import type { Course, EventRecipe, ParsedIngredient, Recipe, RecipeVariant } from "../types";
 
 interface JoinedRow {
@@ -86,6 +87,7 @@ interface VariantRow {
   servings: number;
   notes: string | null;
   ingredients_json: string;
+  pan_size_json: string | null;
 }
 
 function rowToVariant(row: VariantRow): RecipeVariant {
@@ -97,6 +99,7 @@ function rowToVariant(row: VariantRow): RecipeVariant {
     servings: row.servings,
     notes: row.notes,
     ingredients: JSON.parse(row.ingredients_json) as ParsedIngredient[],
+    panSize: row.pan_size_json ? JSON.parse(row.pan_size_json) : null,
   };
 }
 
@@ -140,6 +143,8 @@ export interface VariantInput {
   servings: number;
   notes: string | null;
   ingredients: ParsedIngredient[];
+  /** Overrides the recipe's native pan for this variant; null/omitted uses the recipe's own pan. */
+  panSize?: PanSize | null;
 }
 
 export function createVariant(
@@ -150,8 +155,8 @@ export function createVariant(
 ): RecipeVariant {
   const result = db
     .prepare(
-      `INSERT INTO event_recipe_variants (event_id, recipe_id, label, servings, notes, ingredients_json)
-       VALUES (@eventId, @recipeId, @label, @servings, @notes, @ingredientsJson)`,
+      `INSERT INTO event_recipe_variants (event_id, recipe_id, label, servings, notes, ingredients_json, pan_size_json)
+       VALUES (@eventId, @recipeId, @label, @servings, @notes, @ingredientsJson, @panSizeJson)`,
     )
     .run({
       eventId,
@@ -160,6 +165,7 @@ export function createVariant(
       servings: input.servings,
       notes: input.notes,
       ingredientsJson: JSON.stringify(input.ingredients),
+      panSizeJson: input.panSize ? JSON.stringify(input.panSize) : null,
     });
   const row = db
     .prepare("SELECT * FROM event_recipe_variants WHERE id = ?")
@@ -195,6 +201,7 @@ export function createVariantRebalanced(
     servings: Math.max(0, target.servings - input.servings),
     notes: target.notes,
     ingredients: target.ingredients,
+    panSize: target.panSize,
   });
 
   return { created, adjusted };
@@ -203,7 +210,7 @@ export function createVariantRebalanced(
 export function updateVariant(db: Database.Database, id: number, input: VariantInput): RecipeVariant {
   db.prepare(
     `UPDATE event_recipe_variants SET
-       label = @label, servings = @servings, notes = @notes, ingredients_json = @ingredientsJson
+       label = @label, servings = @servings, notes = @notes, ingredients_json = @ingredientsJson, pan_size_json = @panSizeJson
      WHERE id = @id`,
   ).run({
     id,
@@ -211,6 +218,7 @@ export function updateVariant(db: Database.Database, id: number, input: VariantI
     servings: input.servings,
     notes: input.notes,
     ingredientsJson: JSON.stringify(input.ingredients),
+    panSizeJson: input.panSize ? JSON.stringify(input.panSize) : null,
   });
   const row = db.prepare("SELECT * FROM event_recipe_variants WHERE id = ?").get(id) as
     | VariantRow

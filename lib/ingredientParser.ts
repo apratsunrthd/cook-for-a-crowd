@@ -1,4 +1,5 @@
 import { parseIngredient } from "parse-ingredient";
+import { estimateGramsAtRawQuantity } from "./ingredientWeight";
 import type { ParsedIngredient } from "./types";
 
 /**
@@ -18,8 +19,11 @@ export function parseIngredientLine(raw: string): ParsedIngredient {
       description: raw.trim(),
       isGroupHeader: false,
       needsReview: true,
+      gramsAtRawQuantity: null,
     };
   }
+  const unit = parsed.unitOfMeasureID;
+  const description = parsed.description;
   return {
     raw,
     quantity: parsed.quantity,
@@ -27,12 +31,13 @@ export function parseIngredientLine(raw: string): ParsedIngredient {
     // The canonical id (always singular) rather than the raw matched text,
     // so "1 cup" and "2 cups" of the same ingredient share a unit value --
     // both for consistent display pluralization and for shopping-list merging.
-    unit: parsed.unitOfMeasureID,
-    description: parsed.description,
+    unit,
+    description,
     isGroupHeader: parsed.isGroupHeader,
     // No leading quantity found and it's not just a section heading -> flag
     // for the user to review, since scaling can't do anything useful with it.
     needsReview: parsed.quantity === null && !parsed.isGroupHeader,
+    gramsAtRawQuantity: estimateGramsAtRawQuantity({ quantity: parsed.quantity, unit, description }),
   };
 }
 

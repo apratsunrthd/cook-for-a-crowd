@@ -53,6 +53,17 @@ export function panAreaRatio(nativeSize: PanSize, targetSize: PanSize): number {
   return panArea(targetSize) / nativeArea;
 }
 
+/**
+ * How many people one pan of `targetSize` feeds, given the recipe's native
+ * servings and the pan it was written for. This is the number a batch count
+ * should divide by once a different pan size is in play -- a 9x13 holds
+ * more per pan than the 9x9 the recipe was written for, so "how many pans"
+ * has to use the new pan's capacity, not the recipe's original one.
+ */
+export function servingsPerPan(nativeServings: number, nativeSize: PanSize, targetSize: PanSize): number {
+  return Math.round(nativeServings * panAreaRatio(nativeSize, targetSize));
+}
+
 export function formatPanSize(size: PanSize): string {
   if (size.shape === "round") return `${size.diameterIn ?? "?"}" round`;
   return `${size.widthIn ?? "?"}" x ${size.heightIn ?? "?"}"`;

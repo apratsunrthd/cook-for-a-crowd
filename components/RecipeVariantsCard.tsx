@@ -7,7 +7,7 @@ import { IngredientsField } from "@/components/IngredientsField";
 import { createVariantAction, deleteVariantAction, updateVariantAction } from "@/lib/actions/events";
 import { detachRecipeAction } from "@/lib/actions/recipes";
 import { parseIngredientLines } from "@/lib/ingredientParser";
-import { PAN_PRESETS, panAreaRatio, type PanSize } from "@/lib/panSize";
+import { PAN_PRESETS, formatPanSize, panAreaRatio, servingsPerPan, type PanSize } from "@/lib/panSize";
 import { batchesNeeded, formatScaledIngredient, scaleIngredients } from "@/lib/scale";
 import type { ParsedIngredient, RecipeVariant, ScaledIngredient } from "@/lib/types";
 
@@ -120,11 +120,25 @@ function VariantRow({
   const [servings, setServings] = useState(variant.servings);
   const [notes, setNotes] = useState(variant.notes ?? "");
   const [ingredientsText, setIngredientsText] = useState(variant.ingredients.map((i) => i.raw).join("\n"));
+  const [variantPanSize, setVariantPanSize] = useState<PanSize | null>(variant.panSize);
   const [saving, setSaving] = useState(false);
 
-  const savedBatches = recipeServings ? batchesNeeded(variant.servings, recipeServings) : null;
-  const draftBatches = recipeServings ? batchesNeeded(servings, recipeServings) : null;
-  const draftCoversWhole = recipeServings && draftBatches ? servings === draftBatches * recipeServings : true;
+  // How many people ONE pan feeds for this variant: the recipe's native
+  // per-pan capacity, unless this variant has picked a different pan size,
+  // in which case it's that pan's capacity (a 9x13 holds more than the 9x9
+  // the recipe was written for).
+  function perPanCapacity(panSize: PanSize | null): number | null {
+    if (!recipeServings) return null;
+    if (panSize && recipePanSize) return servingsPerPan(recipeServings, recipePanSize, panSize);
+    return recipeServings;
+  }
+
+  const savedPerPan = perPanCapacity(variant.panSize);
+  const draftPerPan = perPanCapacity(variantPanSize);
+
+  const savedBatches = savedPerPan ? batchesNeeded(variant.servings, savedPerPan) : null;
+  const draftBatches = draftPerPan ? batchesNeeded(servings, draftPerPan) : null;
+  const draftCoversWhole = draftPerPan && draftBatches ? servings === draftBatches * draftPerPan : true;
 
   // Live preview computed from the current (possibly unsaved) form state,
   // so editing servings, the ingredient list, or picking a different pan
@@ -142,6 +156,7 @@ function VariantRow({
       servings,
       notes: notes || null,
       ingredients: parseIngredientLines(ingredientsText.split("\n")),
+      panSize: variantPanSize,
     });
     setSaving(false);
     setEditing(false);
@@ -157,7 +172,13 @@ function VariantRow({
           {showLabel && <div className="text-sm font-medium">{variant.label}</div>}
           <div className="text-xs text-black/60 dark:text-white/60">
             {variant.servings} people
-            {savedBatches !== null && ` · ${pluralize(savedBatches, "pan")}`}
+            {savedBatches !== null && (
+              <>
+                {" "}
+                &middot; {pluralize(savedBatches, "pan")}
+                {variant.panSize && ` of ${formatPanSize(variant.panSize)}`}
+              </>
+            )}
             {variant.notes && <span className="italic"> &middot; {variant.notes}</span>}
           </div>
         </div>
@@ -219,16 +240,17 @@ function VariantRow({
             </div>
           </div>
 
-          {recipeServings && draftBatches !== null && (
+          {recipeServings && draftBatches !== null && draftPerPan !== null && (
             <p className="text-xs text-black/60 dark:text-white/60">
               &asymp; {(servings / recipeServings).toFixed(2)}x the recipe &middot; {pluralize(draftBatches, "pan")}
+              {variantPanSize && ` of ${formatPanSize(variantPanSize)}`} ({draftPerPan}/pan)
               {!draftCoversWhole && (
                 <>
                   {" "}
-                  -- {draftBatches * recipeServings} people if you round up.{" "}
+                  -- {draftBatches * draftPerPan} people if you round up.{" "}
                   <button
                     type="button"
-                    onClick={() => setServings(draftBatches * recipeServings)}
+                    onClick={() => setServings(draftBatches * draftPerPan)}
                     className="underline font-medium"
                   >
                     Round up to whole pans
@@ -242,7 +264,12 @@ function VariantRow({
             <PanSizeCalculator
               recipeServings={recipeServings}
               recipePanSize={recipePanSize}
-              onApply={setServings}
+              currentServings={servings}
+              selectedPanSize={variantPanSize}
+              onApply={(newServings, panSize) => {
+                setServings(newServings);
+                setVariantPanSize(panSize);
+              }}
             />
           )}
 
@@ -282,18 +309,31 @@ function VariantRow({
 function PanSizeCalculator({
   recipeServings,
   recipePanSize,
+  currentServings,
+  selectedPanSize,
   onApply,
 }: {
   recipeServings: number;
   recipePanSize: PanSize;
-  onApply: (servings: number) => void;
+  currentServings: number;
+  selectedPanSize: PanSize | null;
+  onApply: (servings: number, panSize: PanSize) => void;
 }) {
-  const [show, setShow] = useState(false);
-  const [targetPresetId, setTargetPresetId] = useState(PAN_PRESETS[0].id);
+  const [show, setShow] = useState(selectedPanSize !== null);
+  const [targetPresetId, setTargetPresetId] = useState(
+    PAN_PRESETS.find((p) => selectedPanSize && formatPanSize(p.size) === formatPanSize(selectedPanSize))?.id ??
+      PAN_PRESETS[0].id,
+  );
 
   const targetPreset = PAN_PRESETS.find((p) => p.id === targetPresetId) ?? PAN_PRESETS[0];
   const ratio = panAreaRatio(recipePanSize, targetPreset.size);
-  const suggestedServings = Math.round(recipeServings * ratio);
+  // How many people ONE pan of the newly-chosen size feeds -- not the
+  // recipe's native per-pan count. The number of pans is then however many
+  // of THIS pan it takes to cover the headcount we're currently working
+  // toward, rounded up, never a batch count computed against the old pan.
+  const newServingsPerPan = servingsPerPan(recipeServings, recipePanSize, targetPreset.size);
+  const batches = batchesNeeded(currentServings, newServingsPerPan);
+  const totalServings = batches * newServingsPerPan;
 
   if (!show) {
     return (
@@ -318,11 +358,12 @@ function PanSizeCalculator({
         ))}
       </select>
       <span>
-        &asymp; {ratio.toFixed(2)}x the recipe &rarr; {suggestedServings} people
+        &asymp; {ratio.toFixed(2)}x the recipe &rarr; {newServingsPerPan} people/pan &middot;{" "}
+        {pluralize(batches, "pan")} needed for {currentServings} people &rarr; {totalServings} people total
       </span>
       <button
         type="button"
-        onClick={() => onApply(suggestedServings)}
+        onClick={() => onApply(totalServings, targetPreset.size)}
         className="rounded-md border border-black/20 dark:border-white/20 px-2 py-1 font-medium"
       >
         Use this

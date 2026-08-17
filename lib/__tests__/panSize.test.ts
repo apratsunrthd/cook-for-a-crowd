@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAN_PRESETS, formatPanSize, panArea, panAreaRatio } from "../panSize";
+import { PAN_PRESETS, formatPanSize, panArea, panAreaRatio, servingsPerPan } from "../panSize";
 
 describe("panArea", () => {
   it("computes area for a rectangular pan", () => {
@@ -26,6 +26,20 @@ describe("panAreaRatio", () => {
 
   it("does not divide by zero for a malformed native size", () => {
     expect(panAreaRatio({ shape: "rectangle" }, { shape: "rectangle", widthIn: 9, heightIn: 9 })).toBe(1);
+  });
+});
+
+describe("servingsPerPan", () => {
+  it("computes the capacity of a bigger target pan (the user's 9x9 -> 9x13 case)", () => {
+    const nineByNine = { shape: "rectangle" as const, widthIn: 9, heightIn: 9 };
+    const nineByThirteen = { shape: "rectangle" as const, widthIn: 9, heightIn: 13 };
+    // 6 servings at 9x9 (area 81) -> 9x13 (area 117): 6 * 117/81 = 8.67 -> 9
+    expect(servingsPerPan(6, nineByNine, nineByThirteen)).toBe(9);
+  });
+
+  it("returns the native servings when target equals native", () => {
+    const size = { shape: "rectangle" as const, widthIn: 9, heightIn: 13 };
+    expect(servingsPerPan(8, size, size)).toBe(8);
   });
 });
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getDb } from "../db";
+import { fillMissingGrams } from "../ingredientWeightAI";
 import {
   attachRecipe,
   createVariantRebalanced,
@@ -69,7 +70,8 @@ export async function createVariantAction(
   recipeId: number,
   input: VariantInput,
 ): Promise<void> {
-  createVariantRebalanced(getDb(), eventId, recipeId, input);
+  const ingredients = await fillMissingGrams(input.ingredients);
+  createVariantRebalanced(getDb(), eventId, recipeId, { ...input, ingredients });
   revalidatePath(`/events/${eventId}`);
 }
 
@@ -78,7 +80,8 @@ export async function updateVariantAction(
   variantId: number,
   input: VariantInput,
 ): Promise<void> {
-  updateVariant(getDb(), variantId, input);
+  const ingredients = await fillMissingGrams(input.ingredients);
+  updateVariant(getDb(), variantId, { ...input, ingredients });
   revalidatePath(`/events/${eventId}`);
 }
 
