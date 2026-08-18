@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddRecipeToEvent } from "@/components/AddRecipeToEvent";
+import { CookPlan } from "@/components/CookPlan";
 import { DeleteEventButton } from "@/components/DeleteEventButton";
 import { DrinksCard } from "@/components/DrinksCard";
 import { RecipeVariantsCard } from "@/components/RecipeVariantsCard";
+import { ShoppingList } from "@/components/ShoppingList";
 import { getDb } from "@/lib/db";
 import { getEventPlan } from "@/lib/eventPlan";
 import { listDrinksForEvent } from "@/lib/repo/drinks";
@@ -19,7 +21,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
   const db = getDb();
   const plan = getEventPlan(db, Number(id));
   if (!plan) notFound();
-  const { event, headcount, dishes } = plan;
+  const { event, headcount, dishes, shoppingList } = plan;
 
   const attached = listEventRecipes(db, event.id);
   const allRecipes = listRecipes(db);
@@ -88,26 +90,26 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
         <DrinksCard eventId={event.id} defaultHeadcount={headcount} drinks={drinks} />
       </section>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">Printable views</h2>
-        <p className="text-sm text-black/60 dark:text-white/60">
-          The shopping list and the cook&apos;s plan print separately, so you can take just the list
-          to the store or just the plan into the kitchen.
-        </p>
-        <div className="flex gap-3">
-          <Link
-            href={`/events/${event.id}/print/shopping-list`}
-            className="rounded-md border border-black/20 dark:border-white/20 px-3 py-1.5 text-sm font-medium"
-          >
-            Print shopping list
-          </Link>
+      {dishes.length > 0 && (
+        <section className="space-y-2">
+          <CookPlan dishes={dishes} />
           <Link
             href={`/events/${event.id}/print/cook-plan`}
-            className="rounded-md border border-black/20 dark:border-white/20 px-3 py-1.5 text-sm font-medium"
+            className="text-sm underline text-black/70 dark:text-white/70"
           >
-            Print cook&apos;s plan
+            Open printable view &rarr;
           </Link>
-        </div>
+        </section>
+      )}
+
+      <section className="space-y-2">
+        <ShoppingList items={shoppingList} eventName={event.name} />
+        <Link
+          href={`/events/${event.id}/print/shopping-list`}
+          className="text-sm underline text-black/70 dark:text-white/70"
+        >
+          Open printable view &rarr;
+        </Link>
       </section>
     </div>
   );

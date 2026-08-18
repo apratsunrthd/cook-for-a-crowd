@@ -63,7 +63,7 @@ export function EventForm({ event }: { event?: Event }) {
           type="date"
           value={eventDate}
           onChange={(e) => setEventDate(e.target.value)}
-          className="w-full rounded-md border border-black/20 dark:border-white/20 bg-transparent px-3 py-2"
+          className="w-full rounded-md border border-black/20 dark:border-white/20 bg-transparent px-3 py-2 [color-scheme:light] dark:[color-scheme:dark]"
         />
       </div>
 

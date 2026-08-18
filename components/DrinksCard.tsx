@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createDrinkAction, deleteDrinkAction, updateDrinkAction } from "@/lib/actions/drinks";
-import { DEFAULT_DRINK_SERVING_OZ, DRINK_PACKAGE_PRESETS, drinkUnitsNeeded } from "@/lib/drinks";
+import { DEFAULT_DRINK_SERVING_OZ, DRINK_PACKAGE_PRESETS, drinkUnitsNeeded, splitDrinkHeadcounts } from "@/lib/drinks";
 import type { DrinkInput } from "@/lib/repo/drinks";
 import type { EventDrink } from "@/lib/types";
 
@@ -30,6 +30,12 @@ export function DrinksCard({
   const router = useRouter();
   const [adding, setAdding] = useState(false);
 
+  // Un-customized drinks split the headcount evenly rather than each
+  // assuming everyone drinks everything -- see splitDrinkHeadcounts.
+  const headcounts = splitDrinkHeadcounts(drinks, defaultHeadcount);
+  const newDrinkAutoHeadcount =
+    splitDrinkHeadcounts([...drinks, { id: -1, targetHeadcount: null }], defaultHeadcount).get(-1) ?? defaultHeadcount;
+
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Drinks</h2>
@@ -39,14 +45,26 @@ export function DrinksCard({
       {drinks.length > 0 && (
         <ul className="space-y-2">
           {drinks.map((drink) => (
-            <DrinkRow key={drink.id} eventId={eventId} drink={drink} defaultHeadcount={defaultHeadcount} />
+            <DrinkRow
+              key={drink.id}
+              eventId={eventId}
+              drink={drink}
+              autoHeadcount={headcounts.get(drink.id) ?? defaultHeadcount}
+            />
           ))}
         </ul>
+      )}
+      {drinks.length > 1 && (
+        <p className="text-xs text-black/50 dark:text-white/50">
+          Drinks without a specific headcount split the remaining {defaultHeadcount} people evenly --
+          adjust any drink&apos;s headcount if you expect an uneven split (e.g. sweet tea more popular than
+          unsweet).
+        </p>
       )}
       {adding ? (
         <DrinkForm
           eventId={eventId}
-          defaultHeadcount={defaultHeadcount}
+          autoHeadcount={newDrinkAutoHeadcount}
           onDone={() => {
             setAdding(false);
             router.refresh();
@@ -68,15 +86,15 @@ export function DrinksCard({
 function DrinkRow({
   eventId,
   drink,
-  defaultHeadcount,
+  autoHeadcount,
 }: {
   eventId: number;
   drink: EventDrink;
-  defaultHeadcount: number;
+  autoHeadcount: number;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
-  const headcount = drink.targetHeadcount ?? defaultHeadcount;
+  const headcount = drink.targetHeadcount ?? autoHeadcount;
   const units = drinkUnitsNeeded(headcount, drink.servingSizeOz, drink.packageSizeOz);
 
   if (editing) {
@@ -84,7 +102,7 @@ function DrinkRow({
       <li>
         <DrinkForm
           eventId={eventId}
-          defaultHeadcount={defaultHeadcount}
+          autoHeadcount={autoHeadcount}
           initial={drink}
           drinkId={drink.id}
           onDone={() => {
@@ -103,6 +121,7 @@ function DrinkRow({
         <div className="font-medium">{drink.name}</div>
         <div className="text-xs text-black/60 dark:text-white/60">
           {pluralize(units, drink.unitLabel)} &middot; {drink.servingSizeOz} oz/person for {headcount} people
+          {drink.targetHeadcount === null && <span className="text-black/40 dark:text-white/40"> (auto-split)</span>}
           {drink.notes && <span className="italic"> &middot; {drink.notes}</span>}
         </div>
       </div>
@@ -126,14 +145,14 @@ function DrinkRow({
 
 function DrinkForm({
   eventId,
-  defaultHeadcount,
+  autoHeadcount,
   initial,
   drinkId,
   onDone,
   onCancel,
 }: {
   eventId: number;
-  defaultHeadcount: number;
+  autoHeadcount: number;
   initial?: EventDrink;
   drinkId?: number;
   onDone: () => void;
@@ -150,7 +169,7 @@ function DrinkForm({
   const [saving, setSaving] = useState(false);
 
   const preset = DRINK_PACKAGE_PRESETS.find((p) => p.id === presetId) ?? DRINK_PACKAGE_PRESETS[0];
-  const headcount = targetHeadcount === "" ? defaultHeadcount : targetHeadcount;
+  const headcount = targetHeadcount === "" ? autoHeadcount : targetHeadcount;
   const units = drinkUnitsNeeded(headcount, servingSizeOz, preset.sizeOz);
 
   async function save() {
@@ -227,9 +246,12 @@ function DrinkForm({
             min={1}
             value={targetHeadcount}
             onChange={(e) => setTargetHeadcount(e.target.value === "" ? "" : Number(e.target.value))}
-            placeholder={String(defaultHeadcount)}
+            placeholder={String(autoHeadcount)}
             className="w-24 rounded-md border border-black/20 dark:border-white/20 bg-transparent px-2 py-1 text-sm"
           />
+          <p className="mt-1 text-xs text-black/40 dark:text-white/40">
+            Blank = auto-split with other drinks (~{autoHeadcount})
+          </p>
         </div>
       </div>
       <div>

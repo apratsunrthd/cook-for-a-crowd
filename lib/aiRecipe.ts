@@ -35,7 +35,11 @@ const RECIPE_TOOL: Anthropic.Tool = {
       panWidthIn: { type: "number", description: "Pan width in inches, when panShape is rectangle." },
       panHeightIn: { type: "number", description: "Pan length in inches, when panShape is rectangle." },
       panDiameterIn: { type: "number", description: "Pan diameter in inches, when panShape is round." },
-      panQuartsCapacity: { type: "number", description: "Pot capacity in quarts, when panShape is pot." },
+      panQuartsCapacity: {
+        type: "number",
+        description:
+          "Pot capacity in quarts, when panShape is pot. Must be consistent with servings/ingredients -- a 20-quart pot means a large-batch recipe (proportionally more rice, water, etc.), not a small 4-6 serving batch tagged with a big pot size.",
+      },
     },
     required: ["name", "servings", "ingredients", "instructions"],
     additionalProperties: false,
@@ -83,7 +87,7 @@ export async function generateRecipeWithAI(prompt: string, course: Course): Prom
       messages: [
         {
           role: "user",
-          content: `Write a simple, practical home-cook recipe for: ${prompt.trim()}. Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". ${COURSE_GUIDANCE[course]} Size it for a normal single-batch serving count.`,
+          content: `Write a simple, practical home-cook recipe for: ${prompt.trim()}. Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". ${COURSE_GUIDANCE[course]} If the request mentions or implies a specific pan, dish, or pot size, size the servings count AND every ingredient quantity to realistically fill that vessel -- they must agree with each other and with the vessel's actual capacity (a 20-quart stock pot needs several times the rice and water of a small 4-6 serving batch, not the same small batch just labeled with a bigger pot). Otherwise, size it for a normal single-batch serving count.`,
         },
       ],
     });

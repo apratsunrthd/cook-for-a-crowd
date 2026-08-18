@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AutoPrint } from "@/components/AutoPrint";
 import { CookPlan } from "@/components/CookPlan";
 import { PrintButton } from "@/components/PrintButton";
 import { getDb } from "@/lib/db";
@@ -15,7 +14,6 @@ export default async function CookPlanPrintPage({ params }: PageProps<"/events/[
 
   return (
     <div className="space-y-6">
-      <AutoPrint />
       <div className="flex items-center justify-between print:hidden">
         <Link href={`/events/${event.id}`} className="text-sm underline">
           &larr; Back to event

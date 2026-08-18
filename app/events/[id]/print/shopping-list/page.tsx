@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AutoPrint } from "@/components/AutoPrint";
 import { PrintButton } from "@/components/PrintButton";
 import { ShoppingList } from "@/components/ShoppingList";
 import { getDb } from "@/lib/db";
-import { drinkUnitsNeeded } from "@/lib/drinks";
+import { drinkUnitsNeeded, splitDrinkHeadcounts } from "@/lib/drinks";
 import { getEventPlan } from "@/lib/eventPlan";
 import { listDrinksForEvent } from "@/lib/repo/drinks";
 
@@ -21,10 +20,10 @@ export default async function ShoppingListPrintPage({
   if (!plan) notFound();
   const { event, headcount, shoppingList } = plan;
   const drinks = listDrinksForEvent(db, event.id);
+  const drinkHeadcounts = splitDrinkHeadcounts(drinks, headcount);
 
   return (
     <div className="space-y-6">
-      <AutoPrint />
       <div className="flex items-center justify-between print:hidden">
         <Link href={`/events/${event.id}`} className="text-sm underline">
           &larr; Back to event
@@ -39,7 +38,7 @@ export default async function ShoppingListPrintPage({
           <h2 className="text-lg font-semibold">Drinks to buy</h2>
           <ul className="text-sm space-y-1">
             {drinks.map((drink) => {
-              const drinkHeadcount = drink.targetHeadcount ?? headcount;
+              const drinkHeadcount = drinkHeadcounts.get(drink.id) ?? headcount;
               const units = drinkUnitsNeeded(drinkHeadcount, drink.servingSizeOz, drink.packageSizeOz);
               return (
                 <li key={drink.id}>

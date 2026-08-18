@@ -30,3 +30,40 @@ export function drinkUnitsNeeded(targetHeadcount: number, servingSizeOz: number,
   if (packageSizeOz <= 0 || targetHeadcount <= 0 || servingSizeOz <= 0) return 0;
   return Math.ceil((targetHeadcount * servingSizeOz) / packageSizeOz);
 }
+
+/**
+ * Not everyone at an event drinks every drink on offer -- someone having
+ * sweet tea skips the lemonade. Rather than sizing every drink as if it
+ * alone covers the whole headcount (wildly over-buying once you offer more
+ * than one option), a drink with no explicit target headcount splits the
+ * event's headcount evenly with the other auto-split drinks, AFTER setting
+ * aside whatever headcount has been explicitly assigned elsewhere. This
+ * naturally covers every case: one drink with no target gets everyone
+ * (unchanged from before multiple drinks existed); a manually-tuned drink
+ * ("only ~10 people will want soda") is honored exactly, and the remaining
+ * headcount splits evenly across whatever's left unset -- no separate
+ * "share %" concept for the user to manage, just the same targetHeadcount
+ * field every drink already has, used a little more intelligently.
+ */
+export function splitDrinkHeadcounts(
+  drinks: Array<{ id: number; targetHeadcount: number | null }>,
+  eventHeadcount: number,
+): Map<number, number> {
+  const result = new Map<number, number>();
+  const customized = drinks.filter((d) => d.targetHeadcount !== null);
+  const auto = drinks.filter((d) => d.targetHeadcount === null);
+
+  for (const drink of customized) {
+    result.set(drink.id, drink.targetHeadcount as number);
+  }
+
+  if (auto.length === 0) return result;
+
+  const customizedTotal = customized.reduce((sum, d) => sum + (d.targetHeadcount as number), 0);
+  const remaining = Math.max(0, eventHeadcount - customizedTotal);
+  const share = Math.ceil(remaining / auto.length);
+  for (const drink of auto) {
+    result.set(drink.id, share);
+  }
+  return result;
+}
