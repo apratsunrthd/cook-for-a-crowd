@@ -8,8 +8,13 @@ import { PanSizeField } from "@/components/PanSizeField";
 import { attachRecipeAction, getEventHeadcountAction } from "@/lib/actions/events";
 import { saveRecipeAction } from "@/lib/actions/recipes";
 import { parseIngredientLines } from "@/lib/ingredientParser";
-import type { PanSize } from "@/lib/panSize";
+import { formatPanSize, vesselNoun, type PanSize } from "@/lib/panSize";
+import { formatScaledIngredientLine, scaleIngredients } from "@/lib/scale";
 import type { Course, Recipe } from "@/lib/types";
+
+function panSizeKey(size: PanSize | null): string {
+  return size ? formatPanSize(size) : "";
+}
 
 export interface RecipeDraft {
   name: string;
@@ -65,6 +70,12 @@ export function RecipeEditor({
   // by PanRescaleField), forcing it to remount and re-seed its display from
   // the new value instead of showing a stale preset.
   const [panSizeVersion, setPanSizeVersion] = useState(0);
+  // Picking a vessel that doesn't match the recipe's current servings is
+  // exactly how a "20qt pot, 6 servings" inconsistency gets created --
+  // whenever a vessel choice would leave servings unexplained, ask instead
+  // of silently tagging it.
+  const [pendingVesselChange, setPendingVesselChange] = useState<PanSize | null>(null);
+  const [resizeTargetServings, setResizeTargetServings] = useState<number | "">("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [course, setCourse] = useState<Course>(initialCourse ?? "main");
@@ -81,6 +92,52 @@ export function RecipeEditor({
   );
 
   const requiresServings = attachToEventId !== undefined;
+
+  /**
+   * Only commits a vessel choice immediately when there's nothing it could
+   * contradict (no servings recorded yet, or it's an actual no-op). If the
+   * recipe already has real servings, a vessel change is ambiguous --
+   * "record what this recipe (as written) already uses" vs. "resize this
+   * recipe to fill a different vessel" -- and picking wrong silently
+   * produces exactly the bug this exists to prevent.
+   */
+  function handlePanSizeChange(newSize: PanSize | null) {
+    const servingsNumber = servings === "" ? null : Number(servings);
+    const changed = panSizeKey(newSize) !== panSizeKey(panSize);
+    if (newSize !== null && changed && servingsNumber !== null && servingsNumber > 0) {
+      setPendingVesselChange(newSize);
+      setResizeTargetServings("");
+      return;
+    }
+    setPanSize(newSize);
+    setPanSizeVersion((v) => v + 1);
+  }
+
+  function confirmServingsUnchanged() {
+    if (!pendingVesselChange) return;
+    setPanSize(pendingVesselChange);
+    setPanSizeVersion((v) => v + 1);
+    setPendingVesselChange(null);
+  }
+
+  function confirmResizeToVessel() {
+    if (!pendingVesselChange || resizeTargetServings === "" || Number(resizeTargetServings) <= 0) return;
+    const currentServings = servings === "" ? 0 : Number(servings);
+    const factor = currentServings > 0 ? Number(resizeTargetServings) / currentServings : 1;
+    const scaled = scaleIngredients(parsedIngredients, factor);
+    setIngredientsText(scaled.map(formatScaledIngredientLine).join("\n"));
+    setServings(Number(resizeTargetServings));
+    setPanSize(pendingVesselChange);
+    setPanSizeVersion((v) => v + 1);
+    setPendingVesselChange(null);
+  }
+
+  function cancelVesselChange() {
+    setPendingVesselChange(null);
+    // PanSizeField already updated its own display optimistically -- force
+    // it to remount and re-seed from the actual (unchanged) panSize.
+    setPanSizeVersion((v) => v + 1);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -183,7 +240,46 @@ export function RecipeEditor({
 
       <IngredientsField id="ingredients" value={ingredientsText} onChange={setIngredientsText} />
 
-      <PanSizeField key={panSizeVersion} value={panSize} onChange={setPanSize} />
+      <PanSizeField key={panSizeVersion} value={panSize} onChange={handlePanSizeChange} />
+
+      {pendingVesselChange && (
+        <div className="rounded-md border border-amber-400/50 bg-amber-50 dark:bg-amber-900/20 p-3 space-y-2 text-sm">
+          <p>
+            Recording this as {formatPanSize(pendingVesselChange)}. This recipe currently has{" "}
+            {servings} servings -- does a {vesselNoun(pendingVesselChange)} that size actually make about{" "}
+            {servings} servings of this dish, or should the recipe be resized to fill it?
+          </p>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={confirmServingsUnchanged}
+              className="rounded-md border border-black/20 dark:border-white/20 px-2 py-1 font-medium"
+            >
+              Yes, {servings} is right for this {vesselNoun(pendingVesselChange)}
+            </button>
+            <span>or a {vesselNoun(pendingVesselChange)} of this really makes about</span>
+            <input
+              type="number"
+              min={1}
+              value={resizeTargetServings}
+              onChange={(e) => setResizeTargetServings(e.target.value === "" ? "" : Number(e.target.value))}
+              className="w-20 rounded-md border border-black/20 dark:border-white/20 bg-transparent px-2 py-1"
+              aria-label="Actual servings for this vessel"
+            />
+            <button
+              type="button"
+              onClick={confirmResizeToVessel}
+              disabled={resizeTargetServings === ""}
+              className="rounded-md border border-black/20 dark:border-white/20 px-2 py-1 font-medium disabled:opacity-50"
+            >
+              servings -- resize to match
+            </button>
+          </div>
+          <button type="button" onClick={cancelVesselChange} className="text-xs underline">
+            Cancel
+          </button>
+        </div>
+      )}
 
       {panSize && (
         <PanRescaleField
