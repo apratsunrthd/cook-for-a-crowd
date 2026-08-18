@@ -118,9 +118,15 @@ describe("scaleIngredient", () => {
     expect(scaled.quantity).toBe(6);
   });
 
-  it("rounds a can/package/clove-style unit up to a whole number", () => {
-    expect(scaleIngredient(parseIngredientLine("2 cans green beans"), 1.1).quantity).toBe(3);
-    expect(scaleIngredient(parseIngredientLine("1 clove garlic, minced"), 1.5).quantity).toBe(2);
+  it("scales cans/packages/cloves fractionally -- you CAN use 1 1/2 cans of soup", () => {
+    expect(scaleIngredient(parseIngredientLine("2 cans green beans"), 1.1).quantity).toBeCloseTo(2.2);
+    expect(scaleIngredient(parseIngredientLine("1 clove garlic, minced"), 1.5).quantity).toBeCloseTo(1.5);
+  });
+
+  it("scales a bare-count container word (e.g. a sleeve of crackers) fractionally, not as a whole item", () => {
+    const ingredient = parseIngredientLine("1 sleeve buttery round crackers, crushed");
+    expect(ingredient.roundsToWhole).toBe(false);
+    expect(scaleIngredient(ingredient, 1.5).quantity).toBeCloseTo(1.5);
   });
 
   it("still scales continuous units (cups, tablespoons) fractionally", () => {

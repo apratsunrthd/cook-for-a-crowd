@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { generateRecipeWithAI, RecipeGenerationError } from "../aiRecipe";
 import { getDb } from "../db";
-import { fillMissingGrams } from "../ingredientWeightAI";
+import { fillMissingIngredientDetails } from "../ingredientWeightAI";
 import { fillPanSizeGap } from "../panSizeAI";
 import { detachRecipe as detachRecipeFromEvent } from "../repo/eventRecipes";
 import {
@@ -92,7 +92,7 @@ export async function saveRecipeAction(
 ): Promise<ActionResult<{ id: number }>> {
   const db = getDb();
   try {
-    const ingredients = await fillMissingGrams(input.ingredients);
+    const ingredients = await fillMissingIngredientDetails(input.ingredients);
     const recipe =
       id === null
         ? createRecipe(db, { ...input, ingredients })

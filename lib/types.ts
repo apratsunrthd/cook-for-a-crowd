@@ -14,6 +14,8 @@ export interface ParsedIngredient {
   needsReview: boolean;
   /** Weight of this line at its raw (unscaled) quantity, in grams, if it could be determined -- see ingredientWeight.ts. Scales proportionally with quantity. */
   gramsAtRawQuantity: number | null;
+  /** Whether this ingredient's quantity must stay a whole number when scaled (a chicken breast, an egg) vs. can be used fractionally (a can, a cup) -- see ingredientDivisibility.ts. */
+  roundsToWhole: boolean;
 }
 
 export interface Recipe {

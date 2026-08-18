@@ -50,40 +50,16 @@ export function scaleFactor(recipe: Pick<Recipe, "name" | "servings">, targetHea
   return targetHeadcount / recipe.servings;
 }
 
-// Units `parse-ingredient` recognizes that name a whole, indivisible item
-// rather than a measurable amount -- you can't buy or use a fraction of a
-// can, a clove, or a sprig. A null unit (a bare count like "4 chicken breast
-// halves" or "3 eggs") is the same situation and is handled separately.
-const DISCRETE_UNITS = new Set([
-  "bag",
-  "box",
-  "bunch",
-  "can",
-  "carton",
-  "clove",
-  "container",
-  "dozen",
-  "ear",
-  "head",
-  "pack",
-  "package",
-  "piece",
-  "sprig",
-  "stick",
-]);
-
-function isDiscreteUnit(unit: string | null): boolean {
-  return unit === null || DISCRETE_UNITS.has(unit);
-}
-
 /**
- * Rounds a scaled quantity up for whole-item units -- 5.76 chicken breasts
- * or 1.44 cans of green beans isn't purchasable or usable, so it rounds up
- * to 6 breasts / 2 cans. Always up, never to nearest, so a recipe never
- * ends up short by a fraction of a whole item.
+ * Rounds a scaled quantity up when the ingredient is a genuine whole item
+ * (see ingredientDivisibility.ts) -- 5.76 chicken breasts isn't usable, so
+ * it rounds up to 6. A can, box, or sleeve is left exactly as scaled: you
+ * use however much a recipe calls for (1 1/2 cans), even though the store
+ * only sells them whole. Always rounds up, never to nearest, so a recipe
+ * never ends up short by a fraction of a whole item.
  */
-function roundDiscreteQuantity(quantity: number, unit: string | null): number {
-  return isDiscreteUnit(unit) ? Math.ceil(quantity) : quantity;
+function roundIfWholeItem(quantity: number, roundsToWhole: boolean): number {
+  return roundsToWhole ? Math.ceil(quantity) : quantity;
 }
 
 export function scaleIngredient(ingredient: ParsedIngredient, factor: number): ScaledIngredient {
@@ -98,9 +74,9 @@ export function scaleIngredient(ingredient: ParsedIngredient, factor: number): S
       grams: null,
     };
   }
-  const quantity = roundDiscreteQuantity(ingredient.quantity * factor, ingredient.unit);
+  const quantity = roundIfWholeItem(ingredient.quantity * factor, ingredient.roundsToWhole);
   const quantity2 =
-    ingredient.quantity2 === null ? null : roundDiscreteQuantity(ingredient.quantity2 * factor, ingredient.unit);
+    ingredient.quantity2 === null ? null : roundIfWholeItem(ingredient.quantity2 * factor, ingredient.roundsToWhole);
   // Scale the weight estimate off the actual (possibly rounded-up) quantity
   // ratio rather than the raw factor, so it reflects what you're really
   // buying -- 6 rounded-up chicken breasts, not 5.76 of them.

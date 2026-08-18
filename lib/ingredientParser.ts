@@ -1,4 +1,5 @@
 import { parseIngredient } from "parse-ingredient";
+import { guessRoundsToWhole } from "./ingredientDivisibility";
 import { estimateGramsAtRawQuantity } from "./ingredientWeight";
 import type { ParsedIngredient } from "./types";
 
@@ -20,6 +21,7 @@ export function parseIngredientLine(raw: string): ParsedIngredient {
       isGroupHeader: false,
       needsReview: true,
       gramsAtRawQuantity: null,
+      roundsToWhole: false,
     };
   }
   const unit = parsed.unitOfMeasureID;
@@ -38,6 +40,7 @@ export function parseIngredientLine(raw: string): ParsedIngredient {
     // for the user to review, since scaling can't do anything useful with it.
     needsReview: parsed.quantity === null && !parsed.isGroupHeader,
     gramsAtRawQuantity: estimateGramsAtRawQuantity({ quantity: parsed.quantity, unit, description }),
+    roundsToWhole: guessRoundsToWhole({ unit, description }),
   };
 }
 
