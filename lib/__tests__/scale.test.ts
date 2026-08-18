@@ -111,6 +111,33 @@ describe("scaleIngredient", () => {
     expect(scaled.quantity).toBeNull();
     expect(scaled.needsReview).toBe(true);
   });
+
+  it("rounds a bare-count ingredient up to a whole number -- no such thing as 5.76 chicken breasts", () => {
+    const ingredient = parseIngredientLine("4 skinless, boneless chicken breast halves");
+    const scaled = scaleIngredient(ingredient, 1.44);
+    expect(scaled.quantity).toBe(6);
+  });
+
+  it("rounds a can/package/clove-style unit up to a whole number", () => {
+    expect(scaleIngredient(parseIngredientLine("2 cans green beans"), 1.1).quantity).toBe(3);
+    expect(scaleIngredient(parseIngredientLine("1 clove garlic, minced"), 1.5).quantity).toBe(2);
+  });
+
+  it("still scales continuous units (cups, tablespoons) fractionally", () => {
+    expect(scaleIngredient(parseIngredientLine("2 cups flour"), 1.44).quantity).toBeCloseTo(2.88);
+  });
+
+  it("scales the gram estimate off the rounded-up quantity, not the raw factor", () => {
+    const ingredient = {
+      ...parseIngredientLine("4 chicken breast halves"),
+      gramsAtRawQuantity: 700,
+    };
+    const scaled = scaleIngredient(ingredient, 1.44);
+    expect(scaled.quantity).toBe(6);
+    // 4 breasts -> 700g (175g/breast); rounded up to 6 breasts -> 1050g,
+    // not 700 * 1.44 = 1008g (which would under-represent 6 whole breasts).
+    expect(scaled.grams).toBeCloseTo(1050, 0);
+  });
 });
 
 describe("scaleRecipe", () => {

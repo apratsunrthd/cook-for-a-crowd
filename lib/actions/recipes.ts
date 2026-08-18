@@ -20,6 +20,7 @@ import {
   type ImportedRecipeDraft,
 } from "../recipeImport";
 import { parseRecipeFromPlainText } from "../recipeTextParse";
+import type { Course } from "../types";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -69,12 +70,13 @@ export async function importRecipeDraftAction(pasted: string): Promise<ActionRes
 
 export async function generateRecipeDraftAction(
   prompt: string,
+  course: Course,
 ): Promise<ActionResult<ImportedRecipeDraft>> {
   if (!prompt.trim()) {
     return { ok: false, error: "Describe what recipe you want first." };
   }
   try {
-    const draft = await generateRecipeWithAI(prompt);
+    const draft = await generateRecipeWithAI(prompt, course);
     return { ok: true, data: draft };
   } catch (err) {
     if (err instanceof RecipeGenerationError) {

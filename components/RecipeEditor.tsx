@@ -43,10 +43,12 @@ export function RecipeEditor({
   recipeId,
   initialDraft,
   attachToEventId,
+  initialCourse,
 }: {
   recipeId?: number;
   initialDraft?: RecipeDraft | Recipe;
   attachToEventId?: number;
+  initialCourse?: Course;
 }) {
   const router = useRouter();
   const draft = initialDraft && "ingredients" in initialDraft ? recipeToDraft(initialDraft) : initialDraft;
@@ -65,7 +67,7 @@ export function RecipeEditor({
   const [panSizeVersion, setPanSizeVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [course, setCourse] = useState<Course>("main");
+  const [course, setCourse] = useState<Course>(initialCourse ?? "main");
   const [eventHeadcount, setEventHeadcount] = useState<number | null>(null);
 
   useEffect(() => {

@@ -50,15 +50,69 @@ export function scaleFactor(recipe: Pick<Recipe, "name" | "servings">, targetHea
   return targetHeadcount / recipe.servings;
 }
 
+// Units `parse-ingredient` recognizes that name a whole, indivisible item
+// rather than a measurable amount -- you can't buy or use a fraction of a
+// can, a clove, or a sprig. A null unit (a bare count like "4 chicken breast
+// halves" or "3 eggs") is the same situation and is handled separately.
+const DISCRETE_UNITS = new Set([
+  "bag",
+  "box",
+  "bunch",
+  "can",
+  "carton",
+  "clove",
+  "container",
+  "dozen",
+  "ear",
+  "head",
+  "pack",
+  "package",
+  "piece",
+  "sprig",
+  "stick",
+]);
+
+function isDiscreteUnit(unit: string | null): boolean {
+  return unit === null || DISCRETE_UNITS.has(unit);
+}
+
+/**
+ * Rounds a scaled quantity up for whole-item units -- 5.76 chicken breasts
+ * or 1.44 cans of green beans isn't purchasable or usable, so it rounds up
+ * to 6 breasts / 2 cans. Always up, never to nearest, so a recipe never
+ * ends up short by a fraction of a whole item.
+ */
+function roundDiscreteQuantity(quantity: number, unit: string | null): number {
+  return isDiscreteUnit(unit) ? Math.ceil(quantity) : quantity;
+}
+
 export function scaleIngredient(ingredient: ParsedIngredient, factor: number): ScaledIngredient {
+  if (ingredient.quantity === null) {
+    return {
+      raw: ingredient.raw,
+      quantity: null,
+      quantity2: null,
+      unit: ingredient.unit,
+      description: ingredient.description,
+      needsReview: ingredient.needsReview,
+      grams: null,
+    };
+  }
+  const quantity = roundDiscreteQuantity(ingredient.quantity * factor, ingredient.unit);
+  const quantity2 =
+    ingredient.quantity2 === null ? null : roundDiscreteQuantity(ingredient.quantity2 * factor, ingredient.unit);
+  // Scale the weight estimate off the actual (possibly rounded-up) quantity
+  // ratio rather than the raw factor, so it reflects what you're really
+  // buying -- 6 rounded-up chicken breasts, not 5.76 of them.
+  const gramsFactor = ingredient.quantity !== 0 ? quantity / ingredient.quantity : factor;
   return {
     raw: ingredient.raw,
-    quantity: ingredient.quantity === null ? null : ingredient.quantity * factor,
-    quantity2: ingredient.quantity2 === null ? null : ingredient.quantity2 * factor,
+    quantity,
+    quantity2,
     unit: ingredient.unit,
     description: ingredient.description,
     needsReview: ingredient.needsReview,
-    grams: ingredient.gramsAtRawQuantity === null ? null : ingredient.gramsAtRawQuantity * factor,
+    grams: ingredient.gramsAtRawQuantity === null ? null : ingredient.gramsAtRawQuantity * gramsFactor,
   };
 }
 

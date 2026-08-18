@@ -3,6 +3,7 @@ import { parseIngredientLines } from "./ingredientParser";
 import { toolInputToPanSize } from "./panSizeAI";
 import { guessPanSize } from "./panSizeExtract";
 import type { ImportedRecipeDraft } from "./recipeImport";
+import type { Course } from "./types";
 
 // Sonnet 5, not Opus -- this is a small structured-output call, not a task
 // that needs Opus-tier reasoning. Thinking stays on its default (adaptive)
@@ -41,6 +42,20 @@ const RECIPE_TOOL: Anthropic.Tool = {
   strict: true,
 };
 
+// People eat noticeably less of a side or dessert than a main, especially
+// at a buffet-style group meal where several dishes share the plate -- a
+// naive per-serving multiply (or a package's nutrition-label serving count)
+// tends to produce oversized side quantities, e.g. 2 full cans of green
+// beans for 6 people when a can realistically stretches much further as a
+// modest side than its label's "3.5 servings" implies.
+const COURSE_GUIDANCE: Record<Course, string> = {
+  main: "This is a main dish -- size it for a normal, full main-course portion per person.",
+  side:
+    "This is a SIDE dish, sharing the plate with a main and other sides -- people take noticeably less of it than they would if it were the only dish. For a vegetable side specifically, plan on roughly 1/3 to 1/2 cup per person, not a full cup. Do not size canned/packaged quantities by multiplying the package's printed nutrition-label serving count by the number of guests -- that label serving is meant for the food as a whole meal and badly overestimates a shared side portion. A standard ~14.5oz can of vegetables, which lists around 3.5 servings on its label, realistically stretches to 5-6 side-dish portions at a group meal -- so for 6 people, one can is often enough.",
+  dessert:
+    "This is a dessert. Use a modest, realistic per-person portion -- at a group event people often take a smaller taste of dessert, not a full stand-alone dessert serving.",
+};
+
 let client: Anthropic | null = null;
 
 function getClient(): Anthropic {
@@ -53,7 +68,7 @@ function getClient(): Anthropic {
   return client;
 }
 
-export async function generateRecipeWithAI(prompt: string): Promise<ImportedRecipeDraft> {
+export async function generateRecipeWithAI(prompt: string, course: Course): Promise<ImportedRecipeDraft> {
   const anthropic = getClient();
 
   let response: Anthropic.Message;
@@ -67,7 +82,7 @@ export async function generateRecipeWithAI(prompt: string): Promise<ImportedReci
       messages: [
         {
           role: "user",
-          content: `Write a simple, practical home-cook recipe for: ${prompt.trim()}. Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". Size it for a normal single-batch serving count.`,
+          content: `Write a simple, practical home-cook recipe for: ${prompt.trim()}. Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". ${COURSE_GUIDANCE[course]} Size it for a normal single-batch serving count.`,
         },
       ],
     });

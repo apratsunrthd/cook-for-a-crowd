@@ -5,6 +5,7 @@ import { Suspense, useState } from "react";
 import { RecipeEditor, type RecipeDraft } from "@/components/RecipeEditor";
 import { generateRecipeDraftAction, importRecipeDraftAction } from "@/lib/actions/recipes";
 import type { ImportedRecipeDraft } from "@/lib/recipeImport";
+import type { Course } from "@/lib/types";
 
 export default function NewRecipePage() {
   return (
@@ -24,10 +25,12 @@ function NewRecipeForm() {
   const [importError, setImportError] = useState<string | null>(null);
 
   const [aiPrompt, setAiPrompt] = useState("");
+  const [aiCourse, setAiCourse] = useState<Course>("main");
   const [generating, setGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
   const [draft, setDraft] = useState<RecipeDraft | null>(null);
+  const [initialCourse, setInitialCourse] = useState<Course>("main");
   const [started, setStarted] = useState(false);
 
   function applyDraft(data: ImportedRecipeDraft) {
@@ -61,12 +64,13 @@ function NewRecipeForm() {
     e.preventDefault();
     setGenerating(true);
     setAiError(null);
-    const result = await generateRecipeDraftAction(aiPrompt);
+    const result = await generateRecipeDraftAction(aiPrompt, aiCourse);
     setGenerating(false);
     if (!result.ok) {
       setAiError(result.error);
       return;
     }
+    setInitialCourse(aiCourse);
     applyDraft(result.data);
   }
 
@@ -122,6 +126,16 @@ function NewRecipeForm() {
                 placeholder="a simple recipe for canned green beans"
                 className="flex-1 rounded-md border border-black/20 dark:border-white/20 bg-transparent px-3 py-2"
               />
+              <select
+                value={aiCourse}
+                onChange={(e) => setAiCourse(e.target.value as Course)}
+                aria-label="Course, so portion sizes are realistic"
+                className="rounded-md border border-black/20 dark:border-white/20 bg-transparent px-2 py-2 text-sm"
+              >
+                <option value="main">Main</option>
+                <option value="side">Side</option>
+                <option value="dessert">Dessert</option>
+              </select>
               <button
                 type="submit"
                 disabled={generating}
@@ -130,6 +144,10 @@ function NewRecipeForm() {
                 {generating ? "Generating…" : "Generate"}
               </button>
             </div>
+            <p className="text-xs text-black/50 dark:text-white/50">
+              Course affects portion sizing -- sides and desserts get smaller, more realistic
+              per-person amounts than a main.
+            </p>
             {aiError && <p className="text-sm text-red-600">{aiError}</p>}
           </form>
 
@@ -143,7 +161,11 @@ function NewRecipeForm() {
       )}
 
       {started && (
-        <RecipeEditor initialDraft={draft ?? undefined} attachToEventId={attachToEventId} />
+        <RecipeEditor
+          initialDraft={draft ?? undefined}
+          attachToEventId={attachToEventId}
+          initialCourse={initialCourse}
+        />
       )}
     </div>
   );
