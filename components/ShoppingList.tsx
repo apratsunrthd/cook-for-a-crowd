@@ -9,15 +9,7 @@ export function ShoppingList({ items, eventName }: { items: ShoppingListItem[]; 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between print:hidden">
-        <h2 className="text-lg font-semibold">Shopping list</h2>
-        <button
-          onClick={() => window.print()}
-          className="rounded-md border border-black/20 dark:border-white/20 px-3 py-1.5 text-sm font-medium"
-        >
-          Print
-        </button>
-      </div>
+      <h2 className="text-lg font-semibold print:hidden">Shopping list</h2>
       <h2 className="hidden print:block text-lg font-semibold mb-2">
         Shopping list -- {eventName}
       </h2>

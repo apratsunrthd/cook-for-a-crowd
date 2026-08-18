@@ -90,3 +90,22 @@ export interface ShoppingListItem {
   sources: string[];
   grams: number | null;
 }
+
+/**
+ * A drink to buy for an event -- teas, lemonade, soda, bottled water. Sized
+ * by fluid ounces rather than by recipe ingredients: how big one purchased
+ * unit is (a can, a gallon jug), how much one person is assumed to drink,
+ * and how many people it needs to cover. See lib/drinks.ts for the math.
+ */
+export interface EventDrink {
+  id: number;
+  eventId: number;
+  name: string;
+  /** Display label for one purchased unit, e.g. "can", "bottle", "gallon jug". */
+  unitLabel: string;
+  packageSizeOz: number;
+  servingSizeOz: number;
+  /** Null = use the event's own effective headcount. */
+  targetHeadcount: number | null;
+  notes: string | null;
+}

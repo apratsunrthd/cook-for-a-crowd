@@ -21,12 +21,14 @@ const PAN_SIZE_TOOL: Anthropic.Tool = {
       },
       shape: {
         type: "string",
-        enum: ["rectangle", "round"],
-        description: "Required when found is true. A square pan is \"rectangle\" with equal width and height.",
+        enum: ["rectangle", "round", "pot"],
+        description:
+          'Required when found is true. A square pan is "rectangle" with equal width and height. Use "pot" for a stovetop pot/stockpot/Dutch oven rather than a baking pan.',
       },
       widthIn: { type: "number", description: "Width in inches, for shape=rectangle." },
       heightIn: { type: "number", description: "Length in inches, for shape=rectangle." },
       diameterIn: { type: "number", description: "Diameter in inches, for shape=round." },
+      quartsCapacity: { type: "number", description: "Capacity in quarts, for shape=pot." },
     },
     required: ["found"],
     additionalProperties: false,
@@ -36,10 +38,11 @@ const PAN_SIZE_TOOL: Anthropic.Tool = {
 
 interface PanSizeToolInput {
   found: boolean;
-  shape?: "rectangle" | "round";
+  shape?: "rectangle" | "round" | "pot";
   widthIn?: number;
   heightIn?: number;
   diameterIn?: number;
+  quartsCapacity?: number;
 }
 
 /** Pure mapping from the tool's structured output to our PanSize type -- split out so it's testable without a network call. */
@@ -47,6 +50,9 @@ export function toolInputToPanSize(data: PanSizeToolInput): PanSize | null {
   if (!data.found) return null;
   if (data.shape === "round" && data.diameterIn) {
     return { shape: "round", diameterIn: data.diameterIn };
+  }
+  if (data.shape === "pot" && data.quartsCapacity) {
+    return { shape: "pot", quartsCapacity: data.quartsCapacity };
   }
   if (data.shape === "rectangle" && data.widthIn && data.heightIn) {
     return { shape: "rectangle", widthIn: data.widthIn, heightIn: data.heightIn };

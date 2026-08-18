@@ -26,6 +26,9 @@ describe("extractPanSizeFromText", () => {
       { shape: "rectangle", widthIn: 9, heightIn: 9 },
     ],
     ["Bake in an 8 inch square pan.", { shape: "rectangle", widthIn: 8, heightIn: 8 }],
+    ["Cook the rice in a 6-quart pot until tender.", { shape: "pot", quartsCapacity: 6 }],
+    ["Simmer the chili in an 8 qt stock pot for an hour.", { shape: "pot", quartsCapacity: 8 }],
+    ["Brown the meat in a 12-quart Dutch oven.", { shape: "pot", quartsCapacity: 12 }],
   ])("extracts pan size from %s", (text, expected) => {
     expect(extractPanSizeFromText(text)).toEqual(expected);
   });

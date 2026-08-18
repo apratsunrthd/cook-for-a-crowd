@@ -13,6 +13,13 @@ const SHEET_PRESETS: Array<{ pattern: RegExp; presetId: string }> = [
  * guessing when nothing clearly reads as a pan size.
  */
 export function extractPanSizeFromText(text: string): PanSize | null {
+  // Pot: "6-quart pot", "8 qt stock pot", "large stockpot" (no number --
+  // conservatively treated as the largest common size rather than guessed).
+  const potMatch = text.match(/(\d+(?:\.\d+)?)[\s-]*q(?:t|uart)s?\.?\s*(?:pot|stock\s*pot|stockpot|dutch\s*oven|saucepan)/i);
+  if (potMatch) {
+    return { shape: "pot", quartsCapacity: Number(potMatch[1]) };
+  }
+
   for (const { pattern, presetId } of SHEET_PRESETS) {
     if (pattern.test(text)) {
       const preset = PAN_PRESETS.find((p) => p.id === presetId);

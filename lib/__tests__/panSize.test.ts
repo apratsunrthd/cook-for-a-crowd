@@ -11,6 +11,12 @@ describe("panArea", () => {
   });
 });
 
+describe("panArea for pots", () => {
+  it("uses quarts capacity directly as the pot's capacity", () => {
+    expect(panArea({ shape: "pot", quartsCapacity: 8 })).toBe(8);
+  });
+});
+
 describe("panAreaRatio", () => {
   it("computes how many 9x13s fit a half sheet pan", () => {
     const nineByThirteen = PAN_PRESETS.find((p) => p.id === "9x13")!.size;
@@ -41,6 +47,12 @@ describe("servingsPerPan", () => {
     const size = { shape: "rectangle" as const, widthIn: 9, heightIn: 13 };
     expect(servingsPerPan(8, size, size)).toBe(8);
   });
+
+  it("scales by capacity when switching between pots", () => {
+    const sixQt = { shape: "pot" as const, quartsCapacity: 6 };
+    const twelveQt = { shape: "pot" as const, quartsCapacity: 12 };
+    expect(servingsPerPan(6, sixQt, twelveQt)).toBe(12);
+  });
 });
 
 describe("formatPanSize", () => {
@@ -50,5 +62,9 @@ describe("formatPanSize", () => {
 
   it("formats a round pan", () => {
     expect(formatPanSize({ shape: "round", diameterIn: 9 })).toBe('9" round');
+  });
+
+  it("formats a pot", () => {
+    expect(formatPanSize({ shape: "pot", quartsCapacity: 12 })).toBe("12 qt pot");
   });
 });

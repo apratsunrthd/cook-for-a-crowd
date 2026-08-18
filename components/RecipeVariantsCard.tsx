@@ -7,7 +7,7 @@ import { IngredientsField } from "@/components/IngredientsField";
 import { createVariantAction, deleteVariantAction, updateVariantAction } from "@/lib/actions/events";
 import { detachRecipeAction } from "@/lib/actions/recipes";
 import { parseIngredientLines } from "@/lib/ingredientParser";
-import { PAN_PRESETS, formatPanSize, panAreaRatio, servingsPerPan, type PanSize } from "@/lib/panSize";
+import { formatPanSize, panAreaRatio, panPresetsForFamily, servingsPerPan, vesselNoun, type PanSize } from "@/lib/panSize";
 import { batchesNeeded, formatScaledIngredient, scaleIngredients } from "@/lib/scale";
 import type { ParsedIngredient, RecipeVariant, ScaledIngredient } from "@/lib/types";
 
@@ -19,6 +19,13 @@ export interface VariantWithIngredients {
 
 function pluralize(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+// formatPanSize already spells out "qt pot" for a pot -- strip that so
+// "N pots of {size}" doesn't read as "2 pots of 8 qt pot".
+function sizeOnly(size: PanSize): string {
+  const formatted = formatPanSize(size);
+  return size.shape === "pot" ? formatted.replace(/\s*pot$/, "") : formatted;
 }
 
 export function RecipeVariantsCard({
@@ -139,6 +146,8 @@ function VariantRow({
   const savedBatches = savedPerPan ? batchesNeeded(variant.servings, savedPerPan) : null;
   const draftBatches = draftPerPan ? batchesNeeded(servings, draftPerPan) : null;
   const draftCoversWhole = draftPerPan && draftBatches ? servings === draftBatches * draftPerPan : true;
+  const savedNoun = vesselNoun(variant.panSize ?? recipePanSize);
+  const draftNoun = vesselNoun(variantPanSize ?? recipePanSize);
 
   // Live preview computed from the current (possibly unsaved) form state,
   // so editing servings, the ingredient list, or picking a different pan
@@ -175,8 +184,8 @@ function VariantRow({
             {savedBatches !== null && (
               <>
                 {" "}
-                &middot; {pluralize(savedBatches, "pan")}
-                {variant.panSize && ` of ${formatPanSize(variant.panSize)}`}
+                &middot; {pluralize(savedBatches, savedNoun)}
+                {variant.panSize && ` of ${sizeOnly(variant.panSize)}`}
               </>
             )}
             {variant.notes && <span className="italic"> &middot; {variant.notes}</span>}
@@ -242,8 +251,8 @@ function VariantRow({
 
           {recipeServings && draftBatches !== null && draftPerPan !== null && (
             <p className="text-xs text-black/60 dark:text-white/60">
-              &asymp; {(servings / recipeServings).toFixed(2)}x the recipe &middot; {pluralize(draftBatches, "pan")}
-              {variantPanSize && ` of ${formatPanSize(variantPanSize)}`} ({draftPerPan}/pan)
+              &asymp; {(servings / recipeServings).toFixed(2)}x the recipe &middot; {pluralize(draftBatches, draftNoun)}
+              {variantPanSize && ` of ${sizeOnly(variantPanSize)}`} ({draftPerPan}/{draftNoun})
               {!draftCoversWhole && (
                 <>
                   {" "}
@@ -253,7 +262,7 @@ function VariantRow({
                     onClick={() => setServings(draftBatches * draftPerPan)}
                     className="underline font-medium"
                   >
-                    Round up to whole pans
+                    Round up to whole {draftNoun}s
                   </button>
                 </>
               )}
@@ -320,12 +329,14 @@ function PanSizeCalculator({
   onApply: (servings: number, panSize: PanSize) => void;
 }) {
   const [show, setShow] = useState(selectedPanSize !== null);
+  const options = panPresetsForFamily(recipePanSize);
   const [targetPresetId, setTargetPresetId] = useState(
-    PAN_PRESETS.find((p) => selectedPanSize && formatPanSize(p.size) === formatPanSize(selectedPanSize))?.id ??
-      PAN_PRESETS[0].id,
+    options.find((p) => selectedPanSize && formatPanSize(p.size) === formatPanSize(selectedPanSize))?.id ??
+      options[0].id,
   );
+  const noun = vesselNoun(recipePanSize);
 
-  const targetPreset = PAN_PRESETS.find((p) => p.id === targetPresetId) ?? PAN_PRESETS[0];
+  const targetPreset = options.find((p) => p.id === targetPresetId) ?? options[0];
   const ratio = panAreaRatio(recipePanSize, targetPreset.size);
   // How many people ONE pan of the newly-chosen size feeds -- not the
   // recipe's native per-pan count. The number of pans is then however many
@@ -338,28 +349,28 @@ function PanSizeCalculator({
   if (!show) {
     return (
       <button type="button" onClick={() => setShow(true)} className="text-xs underline">
-        Size by pan instead of typing servings
+        Size by {noun} instead of typing servings
       </button>
     );
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md bg-black/[.03] dark:bg-white/[.06] p-2 text-xs">
-      <span>Baking this in</span>
+      <span>{noun === "pot" ? "Cooking" : "Baking"} this in</span>
       <select
         value={targetPresetId}
         onChange={(e) => setTargetPresetId(e.target.value)}
         className="rounded-md border border-black/20 dark:border-white/20 bg-transparent px-2 py-1"
       >
-        {PAN_PRESETS.map((p) => (
+        {options.map((p) => (
           <option key={p.id} value={p.id}>
             {p.label}
           </option>
         ))}
       </select>
       <span>
-        &asymp; {ratio.toFixed(2)}x the recipe &rarr; {newServingsPerPan} people/pan &middot;{" "}
-        {pluralize(batches, "pan")} needed for {currentServings} people &rarr; {totalServings} people total
+        &asymp; {ratio.toFixed(2)}x the recipe &rarr; {newServingsPerPan} people/{noun} &middot;{" "}
+        {pluralize(batches, noun)} needed for {currentServings} people &rarr; {totalServings} people total
       </span>
       <button
         type="button"

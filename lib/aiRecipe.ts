@@ -28,13 +28,14 @@ const RECIPE_TOOL: Anthropic.Tool = {
       instructions: { type: "string", description: "Step-by-step cooking instructions" },
       panShape: {
         type: "string",
-        enum: ["rectangle", "round"],
+        enum: ["rectangle", "round", "pot"],
         description:
-          "If this recipe bakes in a specific pan/dish, its shape. A square pan is \"rectangle\" with equal width and height. Omit entirely for stovetop or no-bakeware recipes.",
+          'The vessel this recipe is made in, if it has a specific size worth recording. A square pan is "rectangle" with equal width and height. Use "pot" for a stovetop pot/stockpot/Dutch oven recipe (e.g. rice, soup, chili) instead of a baking pan. Omit entirely when no specific vessel size applies.',
       },
       panWidthIn: { type: "number", description: "Pan width in inches, when panShape is rectangle." },
       panHeightIn: { type: "number", description: "Pan length in inches, when panShape is rectangle." },
       panDiameterIn: { type: "number", description: "Pan diameter in inches, when panShape is round." },
+      panQuartsCapacity: { type: "number", description: "Pot capacity in quarts, when panShape is pot." },
     },
     required: ["name", "servings", "ingredients", "instructions"],
     additionalProperties: false,
@@ -109,10 +110,11 @@ export async function generateRecipeWithAI(prompt: string, course: Course): Prom
     servings: number;
     ingredients: string[];
     instructions: string;
-    panShape?: "rectangle" | "round";
+    panShape?: "rectangle" | "round" | "pot";
     panWidthIn?: number;
     panHeightIn?: number;
     panDiameterIn?: number;
+    panQuartsCapacity?: number;
   };
 
   const panSize =
@@ -122,6 +124,7 @@ export async function generateRecipeWithAI(prompt: string, course: Course): Prom
       widthIn: data.panWidthIn,
       heightIn: data.panHeightIn,
       diameterIn: data.panDiameterIn,
+      quartsCapacity: data.panQuartsCapacity,
     }) ?? guessPanSize({ name: data.name, instructions: data.instructions, ingredientLines: data.ingredients });
 
   return {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PAN_PRESETS, formatPanSize, panAreaRatio, type PanSize } from "@/lib/panSize";
+import { formatPanSize, panAreaRatio, panPresetsForFamily, vesselNoun, type PanSize } from "@/lib/panSize";
 import { formatScaledIngredientLine, scaleIngredients } from "@/lib/scale";
 import type { ParsedIngredient } from "@/lib/types";
 
@@ -24,9 +24,11 @@ export function PanRescaleField({
   onApply: (result: { panSize: PanSize; servings: number | null; ingredientLines: string[] }) => void;
 }) {
   const [show, setShow] = useState(false);
-  const [targetPresetId, setTargetPresetId] = useState(PAN_PRESETS[0].id);
+  const options = panPresetsForFamily(panSize);
+  const [targetPresetId, setTargetPresetId] = useState(options[0].id);
+  const noun = vesselNoun(panSize);
 
-  const targetPreset = PAN_PRESETS.find((p) => p.id === targetPresetId) ?? PAN_PRESETS[0];
+  const targetPreset = options.find((p) => p.id === targetPresetId) ?? options[0];
   const ratio = panAreaRatio(panSize, targetPreset.size);
   const newServings = servings !== null ? Math.round(servings * ratio) : null;
 
@@ -37,7 +39,7 @@ export function PanRescaleField({
         onClick={() => setShow(true)}
         className="text-xs underline text-black/70 dark:text-white/70"
       >
-        I actually want to bake this in a different pan
+        I actually want to {noun === "pot" ? "cook" : "bake"} this in a different {noun}
       </button>
     );
   }
@@ -46,8 +48,8 @@ export function PanRescaleField({
     <div className="rounded-md bg-black/[.03] dark:bg-white/[.06] p-2 space-y-2 text-xs">
       <p className="text-black/60 dark:text-white/60">
         Written for {formatPanSize(panSize)}
-        {servings !== null && ` (serves ${servings})`}. Pick the pan you actually plan to use and the
-        servings and ingredients below will rescale to match.
+        {servings !== null && ` (serves ${servings})`}. Pick the {noun} you actually plan to use and
+        the servings and ingredients below will rescale to match.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <select
@@ -55,7 +57,7 @@ export function PanRescaleField({
           onChange={(e) => setTargetPresetId(e.target.value)}
           className="rounded-md border border-black/20 dark:border-white/20 bg-transparent px-2 py-1"
         >
-          {PAN_PRESETS.map((p) => (
+          {options.map((p) => (
             <option key={p.id} value={p.id}>
               {p.label}
             </option>

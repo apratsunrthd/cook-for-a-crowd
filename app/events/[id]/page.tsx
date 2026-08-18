@@ -1,67 +1,35 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddRecipeToEvent } from "@/components/AddRecipeToEvent";
-import { CookPlan } from "@/components/CookPlan";
 import { DeleteEventButton } from "@/components/DeleteEventButton";
-import { RecipeVariantsCard, type VariantWithIngredients } from "@/components/RecipeVariantsCard";
-import { ShoppingList } from "@/components/ShoppingList";
+import { DrinksCard } from "@/components/DrinksCard";
+import { RecipeVariantsCard } from "@/components/RecipeVariantsCard";
 import { getDb } from "@/lib/db";
-import { listAllVariantsForEvent, listEventRecipes } from "@/lib/repo/eventRecipes";
-import { getEvent } from "@/lib/repo/events";
+import { getEventPlan } from "@/lib/eventPlan";
+import { listDrinksForEvent } from "@/lib/repo/drinks";
+import { listEventRecipes } from "@/lib/repo/eventRecipes";
 import { listRecipes } from "@/lib/repo/recipes";
-import { InvalidServingsError, effectiveHeadcount, scaleFactor, scaleIngredients } from "@/lib/scale";
-import { aggregateIngredients, type RecipeIngredients } from "@/lib/shoppingList";
-import type { Course, Recipe, ScaledIngredient } from "@/lib/types";
+import type { Course } from "@/lib/types";
 
 const COURSE_LABELS: Record<Course, string> = { main: "Mains", side: "Sides", dessert: "Desserts" };
 const COURSE_ORDER: Course[] = ["main", "side", "dessert"];
 
-interface DishWithVariants {
-  recipe: Recipe;
-  course: Course;
-  variants: VariantWithIngredients[];
-}
-
 export default async function EventDetailPage({ params }: PageProps<"/events/[id]">) {
   const { id } = await params;
   const db = getDb();
-  const event = getEvent(db, Number(id));
-  if (!event) notFound();
+  const plan = getEventPlan(db, Number(id));
+  if (!plan) notFound();
+  const { event, headcount, dishes } = plan;
 
-  const headcount = effectiveHeadcount(event);
   const attached = listEventRecipes(db, event.id);
-  const allVariants = listAllVariantsForEvent(db, event.id);
   const allRecipes = listRecipes(db);
   const attachedIds = new Set(attached.map((a) => a.recipe.id));
   const availableRecipes = allRecipes.filter((r) => !attachedIds.has(r.id));
-
-  const dishes: DishWithVariants[] = attached.map(({ eventRecipe, recipe }) => {
-    const variantsForRecipe = allVariants.filter((v) => v.recipeId === recipe.id);
-    const variants: VariantWithIngredients[] = variantsForRecipe.map((variant) => {
-      try {
-        const factor = scaleFactor(recipe, variant.servings);
-        return { variant, ingredients: scaleIngredients(variant.ingredients, factor), error: null };
-      } catch (err) {
-        const message = err instanceof InvalidServingsError ? err.message : "Couldn't scale this recipe.";
-        return { variant, ingredients: null, error: message };
-      }
-    });
-    return { recipe, course: eventRecipe.course, variants };
-  });
-
-  const shoppingListInputs: RecipeIngredients[] = dishes.flatMap((dish) =>
-    dish.variants
-      .filter((v): v is VariantWithIngredients & { ingredients: ScaledIngredient[] } => v.ingredients !== null)
-      .map((v) => ({
-        recipeName: dish.variants.length > 1 ? `${dish.recipe.name} (${v.variant.label})` : dish.recipe.name,
-        ingredients: v.ingredients,
-      })),
-  );
-  const shoppingList = aggregateIngredients(shoppingListInputs);
+  const drinks = listDrinksForEvent(db, event.id);
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between print:hidden">
+      <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{event.name}</h1>
           <p className="text-sm text-black/60 dark:text-white/60">
@@ -76,11 +44,8 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
           <DeleteEventButton eventId={event.id} />
         </div>
       </div>
-      <h1 className="hidden print:block text-2xl font-semibold">
-        {event.eventDate ? `${event.name} -- ${event.eventDate}` : event.name}
-      </h1>
 
-      <section className="space-y-4 print:hidden">
+      <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Meal plan</h2>
         </div>
@@ -119,14 +84,30 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
         )}
       </section>
 
-      {dishes.length > 0 && (
-        <section className="print:mt-0">
-          <CookPlan dishes={dishes} />
-        </section>
-      )}
+      <section>
+        <DrinksCard eventId={event.id} defaultHeadcount={headcount} drinks={drinks} />
+      </section>
 
-      <section className="print:mt-0">
-        <ShoppingList items={shoppingList} eventName={event.name} />
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">Printable views</h2>
+        <p className="text-sm text-black/60 dark:text-white/60">
+          The shopping list and the cook&apos;s plan print separately, so you can take just the list
+          to the store or just the plan into the kitchen.
+        </p>
+        <div className="flex gap-3">
+          <Link
+            href={`/events/${event.id}/print/shopping-list`}
+            className="rounded-md border border-black/20 dark:border-white/20 px-3 py-1.5 text-sm font-medium"
+          >
+            Print shopping list
+          </Link>
+          <Link
+            href={`/events/${event.id}/print/cook-plan`}
+            className="rounded-md border border-black/20 dark:border-white/20 px-3 py-1.5 text-sm font-medium"
+          >
+            Print cook&apos;s plan
+          </Link>
+        </div>
       </section>
     </div>
   );

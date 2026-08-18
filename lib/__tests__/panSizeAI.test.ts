@@ -29,8 +29,16 @@ describe("toolInputToPanSize", () => {
     });
   });
 
+  it("maps a pot result", () => {
+    expect(toolInputToPanSize({ found: true, shape: "pot", quartsCapacity: 8 })).toEqual({
+      shape: "pot",
+      quartsCapacity: 8,
+    });
+  });
+
   it("returns null if found is true but the shape's required dimensions are missing", () => {
     expect(toolInputToPanSize({ found: true, shape: "round" })).toBeNull();
     expect(toolInputToPanSize({ found: true, shape: "rectangle", widthIn: 9 })).toBeNull();
+    expect(toolInputToPanSize({ found: true, shape: "pot" })).toBeNull();
   });
 });

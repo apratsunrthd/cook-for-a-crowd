@@ -1,4 +1,4 @@
-import { formatPanSize, servingsPerPan, type PanSize } from "@/lib/panSize";
+import { formatPanSize, servingsPerPan, vesselNoun, type PanSize } from "@/lib/panSize";
 import { batchesNeeded, formatScaledIngredient, scaleIngredients } from "@/lib/scale";
 import type { Course, Recipe } from "@/lib/types";
 import type { VariantWithIngredients } from "./RecipeVariantsCard";
@@ -76,12 +76,15 @@ function VariantPlan({
       ? servingsPerPan(recipe.servings, recipe.panSize, panSize)
       : recipe.servings;
   const batches = perPanServings ? batchesNeeded(variant.servings, perPanServings) : null;
-  const panLabel = panSize ? ` (${formatPanSize(panSize)} pan)` : "";
+  const noun = vesselNoun(panSize);
+  // formatPanSize already spells out "qt pot" for a pot, so only a pan
+  // needs the noun appended to read as a vessel ("9" x 13" pan").
+  const panLabel = panSize ? ` (${formatPanSize(panSize)}${noun === "pot" ? "" : ` ${noun}`})` : "";
 
   const header = (
     <div className="text-sm font-medium">
       {batches !== null
-        ? `Make ${batches} ${batches === 1 ? "pan" : "pans"}${panLabel}, ${perPanServings} people per pan`
+        ? `Make ${batches} ${batches === 1 ? noun : `${noun}s`}${panLabel}, ${perPanServings} people per ${noun}`
         : `Make enough for ${variant.servings} people`}
       {showLabel && <> &mdash; {variant.label}</>}
       {variant.notes && (
@@ -100,7 +103,7 @@ function VariantPlan({
   return (
     <div className="space-y-1">
       {header}
-      <div className="text-xs text-black/60 dark:text-white/60">Per pan:</div>
+      <div className="text-xs text-black/60 dark:text-white/60">Per {noun}:</div>
       <ul className="text-sm pl-4 list-disc space-y-0.5">
         {perPanIngredients.map((ingredient, idx) => (
           <li key={idx} className={ingredient.needsReview ? "text-amber-600 dark:text-amber-400" : undefined}>
