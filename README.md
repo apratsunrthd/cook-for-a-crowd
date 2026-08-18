@@ -1,45 +1,61 @@
-# brads-gstack-starter
+# Cook for a Crowd
 
-A GitHub template repo for starting new projects wired up to
-[apratsunrthd/gstack](https://github.com/apratsunrthd/gstack) — a personal fork of
-[garrytan/gstack](https://github.com/garrytan/gstack).
+A small local web app for planning meals for a group event — scale recipes to a
+headcount, get a shopping list, and print a cook's plan for the kitchen. Built for
+planning a Scout troop's quarterly court-of-honor meal, but works for any
+recipe-scaling-for-a-crowd problem.
 
-## What this does
+## What it does
 
-Any repo created from this template ships with:
+- **Import or generate recipes** — paste a URL, HTML, or plain recipe text, or
+  describe a recipe and let AI write one (with realistic portion sizes for
+  mains vs. sides vs. desserts).
+- **Scale to a headcount** — set an event's RSVP count plus a no-show buffer,
+  and every recipe scales to the resulting target. Scaling respects reality:
+  discrete items (eggs, chicken breasts) round up to whole numbers, divisible
+  packaged goods (a can of soup, a sleeve of crackers) don't.
+- **Pan- and pot-aware** — record the pan or pot a recipe was made in (baking
+  pans by area, stovetop pots by capacity) and rescale it to a different
+  vessel, or size a dish to a whole number of pans/pots for an event.
+- **Variants** — handle a gluten-free or allergen-free batch of a dish
+  alongside the standard one, each with its own ingredient list and headcount.
+- **Shopping list & cook's plan** — a combined shopping list across every dish
+  at an event, and a cook's plan with per-pan/per-pot ingredient breakdowns.
+  Both display inline and have a dedicated printable view.
+- **Drinks planner** — plan teas, lemonade, soda, and water separately from
+  food, sized by fluid ounces per person and by purchase unit (can, bottle,
+  gallon jug). Can suggest a realistic lineup and headcount split with AI
+  (e.g. "tea and lemonade" for a Southern event comes back weighted toward
+  sweet tea, not an even split).
 
-- **`CLAUDE.md`** — a `## gstack (REQUIRED)` section telling Claude Code to verify
-  gstack is installed globally before doing any work, and how to install it if not
-  (pointed at the `apratsunrthd/gstack` fork, not upstream).
-- **`.claude/hooks/check-gstack.sh`** — a `PreToolUse` hook that blocks Skill usage
-  until gstack is installed at `~/.claude/skills/gstack`.
-- **`.claude/settings.json`** — registers the hook above.
+## Stack
 
-This mirrors gstack's own "team mode required" bootstrap
-(`gstack-team-init required`), except it points installers at the
-`apratsunrthd` fork instead of upstream `garrytan/gstack`.
+Next.js (App Router, TypeScript) + Tailwind, SQLite via `better-sqlite3` (no
+separate backend), Anthropic's API for the optional AI features. See
+`CLAUDE.md` for the design principles the app is built around.
 
-## Using this template
-
-Click **"Use this template" → "Create a new repository"** on GitHub, or:
+## Getting started
 
 ```bash
-gh repo create my-new-project --template apratsunrthd/brads-gstack-starter --clone
+npm install
+cp .env.example .env.local   # optional: add an ANTHROPIC_API_KEY for AI features
+npm run dev
 ```
 
-The first time you (or a teammate) open the new repo in Claude Code and try to use
-a skill, you'll be blocked until gstack is installed:
+Open [http://localhost:3000](http://localhost:3000). The SQLite database is
+created automatically at `data/cook-for-a-crowd.sqlite` on first run.
+
+## Testing
 
 ```bash
-git clone --single-branch --depth 1 https://github.com/apratsunrthd/gstack.git ~/.claude/skills/gstack
-cd ~/.claude/skills/gstack && ./setup --team
+npm test        # run once
+npm run test:watch
 ```
 
-After that, skills like `/office-hours`, `/review`, `/qa`, `/ship`, and `/browse`
-are available in every session.
+## Development notes
 
-## Keeping this template in sync with your fork
-
-This template only points at the fork's install URL — it doesn't vendor any gstack
-code. If you rename or move `apratsunrthd/gstack`, update the URL in `CLAUDE.md` and
-`.claude/hooks/check-gstack.sh` here.
+This project was built with [Claude Code](https://claude.com/claude-code) using
+[gstack](https://github.com/apratsunrthd/gstack) (a personal fork of
+[garrytan/gstack](https://github.com/garrytan/gstack)) for the AI-assisted
+workflow — see `CLAUDE.md` for the setup. That's tooling context, not a
+requirement for running the app itself.
