@@ -275,6 +275,13 @@ export function RecipeEditor({
               servings -- resize to match
             </button>
           </div>
+          {pendingVesselChange.shape === "pot" && (
+            <p className="text-xs text-black/50 dark:text-white/50">
+              Think about how full a real pot that size would actually be with these quantities --
+              e.g. a 12-quart stockpot realistically cooks about 12-14 cups of dry rice, not 5-6 or
+              25-30.
+            </p>
+          )}
           <button type="button" onClick={cancelVesselChange} className="text-xs underline">
             Cancel
           </button>

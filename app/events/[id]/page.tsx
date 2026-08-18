@@ -4,13 +4,17 @@ import { AddRecipeToEvent } from "@/components/AddRecipeToEvent";
 import { CookPlan } from "@/components/CookPlan";
 import { DeleteEventButton } from "@/components/DeleteEventButton";
 import { DrinksCard } from "@/components/DrinksCard";
+import { PurchasedItemsCard } from "@/components/PurchasedItemsCard";
 import { RecipeVariantsCard } from "@/components/RecipeVariantsCard";
 import { ShoppingList } from "@/components/ShoppingList";
+import { SuppliesCard } from "@/components/SuppliesCard";
 import { getDb } from "@/lib/db";
 import { getEventPlan } from "@/lib/eventPlan";
 import { listDrinksForEvent } from "@/lib/repo/drinks";
 import { listEventRecipes } from "@/lib/repo/eventRecipes";
+import { listPurchasedItemsForEvent } from "@/lib/repo/purchasedItems";
 import { listRecipes } from "@/lib/repo/recipes";
+import { listSuppliesForEvent } from "@/lib/repo/supplies";
 import type { Course } from "@/lib/types";
 
 const COURSE_LABELS: Record<Course, string> = { main: "Mains", side: "Sides", dessert: "Desserts" };
@@ -28,6 +32,8 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
   const attachedIds = new Set(attached.map((a) => a.recipe.id));
   const availableRecipes = allRecipes.filter((r) => !attachedIds.has(r.id));
   const drinks = listDrinksForEvent(db, event.id);
+  const supplies = listSuppliesForEvent(db, event.id);
+  const purchasedItems = listPurchasedItemsForEvent(db, event.id);
 
   return (
     <div className="space-y-8">
@@ -87,7 +93,15 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
       </section>
 
       <section>
+        <PurchasedItemsCard eventId={event.id} items={purchasedItems} />
+      </section>
+
+      <section>
         <DrinksCard eventId={event.id} defaultHeadcount={headcount} drinks={drinks} />
+      </section>
+
+      <section>
+        <SuppliesCard eventId={event.id} defaultHeadcount={headcount} supplies={supplies} />
       </section>
 
       {dishes.length > 0 && (

@@ -109,3 +109,36 @@ export interface EventDrink {
   targetHeadcount: number | null;
   notes: string | null;
 }
+
+/**
+ * A simple per-person consumable for an event -- plates, napkins, utensils,
+ * ice. Unlike drinks (which vary a lot by package size and person-to-person
+ * preference), these are well-established per-person multipliers with no
+ * real judgment call involved, so there's no AI suggestion step -- just a
+ * default multiplier the user can override. `unit` is a free label (e.g.
+ * "plate", "lb") so the same shape covers both counted and weighed items.
+ */
+export interface EventSupply {
+  id: number;
+  eventId: number;
+  name: string;
+  unit: string;
+  perPersonQuantity: number;
+  /** Null = use the event's own effective headcount. */
+  targetHeadcount: number | null;
+  notes: string | null;
+}
+
+/**
+ * A dish that's being bought or ordered rather than cooked from a recipe --
+ * a store-bought dessert, a catering order. No ingredients to scale; just
+ * enough to remember it's part of the plan and how much was ordered.
+ */
+export interface EventPurchasedItem {
+  id: number;
+  eventId: number;
+  name: string;
+  course: Course;
+  quantityNote: string;
+  notes: string | null;
+}

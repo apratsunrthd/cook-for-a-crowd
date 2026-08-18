@@ -38,7 +38,7 @@ const RECIPE_TOOL: Anthropic.Tool = {
       panQuartsCapacity: {
         type: "number",
         description:
-          "Pot capacity in quarts, when panShape is pot. Must be consistent with servings/ingredients -- a 20-quart pot means a large-batch recipe (proportionally more rice, water, etc.), not a small 4-6 serving batch tagged with a big pot size.",
+          'Pot capacity in quarts, when panShape is pot. Must reflect a REALISTIC fill for that pot, not just scale linearly with servings -- a 12-quart stockpot realistically cooks about 12-14 cups of dry rice (with its water) at a rolling boil, not 5-6 and not 25-30. Ground this in how full a real pot of that size would actually be with the ingredient quantities you wrote, the same way you\'d judge a baking pan\'s size from a batter\'s volume.',
       },
     },
     required: ["name", "servings", "ingredients", "instructions"],
@@ -87,7 +87,7 @@ export async function generateRecipeWithAI(prompt: string, course: Course): Prom
       messages: [
         {
           role: "user",
-          content: `Write a simple, practical home-cook recipe for: ${prompt.trim()}. Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". ${COURSE_GUIDANCE[course]} If the request mentions or implies a specific pan, dish, or pot size, size the servings count AND every ingredient quantity to realistically fill that vessel -- they must agree with each other and with the vessel's actual capacity (a 20-quart stock pot needs several times the rice and water of a small 4-6 serving batch, not the same small batch just labeled with a bigger pot). Otherwise, size it for a normal single-batch serving count.`,
+          content: `Write a simple, practical home-cook recipe for: ${prompt.trim()}. Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". ${COURSE_GUIDANCE[course]} If the request mentions or implies a specific pan, dish, or pot size, size the servings count AND every ingredient quantity to realistically fill that vessel -- they must agree with each other and with a REAL vessel of that size's actual fill capacity, not just scale together arbitrarily. For a pot specifically, ground it in real cooking capacity: a 12-quart stockpot realistically cooks about 12-14 cups of dry rice, not 5-6 (too little, wastes the pot) and not 25-30 (won't fit/cook properly) -- the same logic applies to pasta, beans, soup, etc. Otherwise, size it for a normal single-batch serving count.`,
         },
       ],
     });
