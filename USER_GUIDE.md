@@ -236,10 +236,17 @@ commits until you do.
 
 ## Supplies
 
-Plates, napkins, cups, forks, spoons, knives, and ice — one-click presets at
-standard per-person multipliers (no AI involved here, since these don't have
-the regional-preference ambiguity drinks do). Ice defaults to 1.5 lb per
-person. Add anything else with a custom name/unit/per-person amount.
+Dinner plates, dessert plates, napkins, cups, forks, spoons, knives, and
+ice — one-click presets at standard per-person multipliers (no AI involved
+here, since these don't have the regional-preference ambiguity drinks do).
+Plates are split into separate dinner and dessert line items rather than
+one combined count, since a dessert plate is typically a different size.
+Forks and spoons default to 2 per person, not 1 — someone eats their meal,
+throws that one away, and gets a clean one for dessert; knives don't get
+the same bump since dessert rarely needs one. Ice defaults to 1.5 lb per
+person. Every preset is just a starting point — adjust the per-person
+number or headcount on any added item, or add anything else entirely with
+a custom name/unit/per-person amount.
 
 ## The menu
 
