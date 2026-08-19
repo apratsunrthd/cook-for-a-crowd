@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { FOODSERVICE_PACKAGE_PRESETS, foodservicePackagesNeeded } from "@/lib/foodservicePackaging";
+import {
+  FOODSERVICE_PACKAGE_PRESETS,
+  foodservicePackageCategoryFor,
+  foodservicePackagesNeeded,
+} from "@/lib/foodservicePackaging";
 import { formatShoppingListItem } from "@/lib/shoppingList";
 import type { ShoppingListItem } from "@/lib/types";
 
@@ -34,8 +38,12 @@ export function ShoppingList({ items, eventName }: { items: ShoppingListItem[]; 
       ) : (
         <ul className="space-y-1 text-sm">
           {confirmed.map((item) => {
+            const category = foodservicePackageCategoryFor(item);
+            const options = category
+              ? FOODSERVICE_PACKAGE_PRESETS.filter((p) => p.category === category)
+              : [];
             const presetId = packagePresetId[item.key] ?? AS_LISTED;
-            const preset = FOODSERVICE_PACKAGE_PRESETS.find((p) => p.id === presetId);
+            const preset = options.find((p) => p.id === presetId);
             const packagesNeeded =
               preset && item.grams !== null ? foodservicePackagesNeeded(item.grams, preset.grams) : null;
 
@@ -51,7 +59,7 @@ export function ShoppingList({ items, eventName }: { items: ShoppingListItem[]; 
                   )}
                 </span>
                 <span className="flex items-center gap-2 print:hidden">
-                  {item.grams !== null && (
+                  {options.length > 0 && (
                     <select
                       value={presetId}
                       onChange={(e) =>
@@ -61,7 +69,7 @@ export function ShoppingList({ items, eventName }: { items: ShoppingListItem[]; 
                       className="rounded-md border border-black/20 dark:border-white/20 bg-transparent px-1.5 py-0.5 text-xs"
                     >
                       <option value={AS_LISTED}>As listed</option>
-                      {FOODSERVICE_PACKAGE_PRESETS.map((p) => (
+                      {options.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.label}
                         </option>
