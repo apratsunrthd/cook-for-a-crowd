@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { parseIngredientLine } from "../ingredientParser";
 import { scaleIngredient } from "../scale";
-import { estimatePortionOz, formatPortionOz, totalDishGrams } from "../servingSize";
+import {
+  estimatePortionCups,
+  estimatePortionOz,
+  formatPortionCups,
+  formatPortionOz,
+  totalDishGrams,
+  totalDishVolumeMl,
+} from "../servingSize";
 import type { ScaledIngredient } from "../types";
 
 function scaled(raw: string, factor = 1): ScaledIngredient {
@@ -43,5 +50,51 @@ describe("formatPortionOz", () => {
     expect(formatPortionOz(4.05)).toBe("4 oz");
     expect(formatPortionOz(4.3)).toBe("4 1/2 oz");
     expect(formatPortionOz(4.8)).toBe("5 oz");
+  });
+});
+
+describe("totalDishVolumeMl", () => {
+  it("converts a volume-unit ingredient directly, no density needed", () => {
+    // 1 cup = 236.588 ml.
+    expect(totalDishVolumeMl([scaled("1 cup water")])).toBeCloseTo(236.588, 0);
+  });
+
+  it("falls back to weight/density for a count-based line with no volume unit", () => {
+    // 10 cans x 14.5 oz = 145 oz = ~4110.7g green beans; at 125 g/cup that's ~32.9 cups.
+    const ml = totalDishVolumeMl([scaled("10 (14.5 oz) cans green beans, drained")]);
+    expect(ml).not.toBeNull();
+    expect(ml! / 236.588).toBeCloseTo(32.9, 0);
+  });
+
+  it("returns null when nothing in the dish could be sized by volume", () => {
+    expect(totalDishVolumeMl([scaled("3 eggs"), scaled("2 chicken breasts")])).toBeNull();
+  });
+});
+
+describe("estimatePortionCups", () => {
+  it("divides the dish's total volume across the headcount", () => {
+    const dish = [scaled("2 cups flour")];
+    expect(estimatePortionCups(dish, 4)).toBeCloseTo(0.5, 2);
+  });
+
+  it("estimates a sensible per-person cup amount for a canned-vegetable side", () => {
+    // ~32.9 cups total across 57 people -> ~0.58 cups/person, a plausible side-dish portion.
+    const dish = [scaled("10 (14.5 oz) cans green beans, drained")];
+    const cups = estimatePortionCups(dish, 57);
+    expect(cups).not.toBeNull();
+    expect(cups!).toBeGreaterThan(0.4);
+    expect(cups!).toBeLessThan(0.8);
+  });
+});
+
+describe("formatPortionCups", () => {
+  it("snaps to the nearest common cooking fraction", () => {
+    expect(formatPortionCups(0.5)).toBe("1/2 cup");
+    expect(formatPortionCups(1)).toBe("1 cup");
+    expect(formatPortionCups(1.25)).toBe("1 1/4 cups");
+  });
+
+  it("returns null rather than '0 cups' for a negligible amount", () => {
+    expect(formatPortionCups(0.02)).toBeNull();
   });
 });

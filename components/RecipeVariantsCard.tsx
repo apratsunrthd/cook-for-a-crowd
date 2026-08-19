@@ -17,7 +17,7 @@ import {
   type PanSize,
 } from "@/lib/panSize";
 import { batchesNeeded, formatScaledIngredient, scaleIngredients } from "@/lib/scale";
-import { estimatePortionOz, formatPortionOz } from "@/lib/servingSize";
+import { estimatePortionCups, estimatePortionOz, formatPortionCups, formatPortionOz } from "@/lib/servingSize";
 import type { ParsedIngredient, RecipeVariant, ScaledIngredient } from "@/lib/types";
 
 export interface VariantWithIngredients {
@@ -194,11 +194,19 @@ function VariantRow({
   }
 
   const displayIngredients = editing ? livePreview : ingredients;
-  // Rough gauge of portion size -- total known ingredient weight divided
-  // across the headcount this variant is scaled for. Off the *saved*
-  // ingredients, matching the also-saved `variant.servings` shown right
-  // next to it, rather than whatever's being drafted in the editor.
+  // Rough gauge of portion size -- total known ingredient weight/volume
+  // divided across the headcount this variant is scaled for. Off the
+  // *saved* ingredients, matching the also-saved `variant.servings` shown
+  // right next to it, rather than whatever's being drafted in the editor.
+  // Cups and ounces aren't always derivable from the same ingredients (a
+  // liquid with no density match still converts to volume; a whole-item
+  // count doesn't convert to volume without one), so each is independent
+  // and either can be missing on its own.
   const portionOz = ingredients ? estimatePortionOz(ingredients, variant.servings) : null;
+  const portionCups = ingredients ? estimatePortionCups(ingredients, variant.servings) : null;
+  const ozLabel = portionOz !== null ? formatPortionOz(portionOz) : null;
+  const cupsLabel = portionCups !== null ? formatPortionCups(portionCups) : null;
+  const portionLabel = [cupsLabel, ozLabel].filter((s): s is string => s !== null).join(" / ");
 
   return (
     <div className="rounded-md bg-black/[.02] dark:bg-white/[.04] p-3 space-y-2">
@@ -207,7 +215,7 @@ function VariantRow({
           {showLabel && <div className="text-sm font-medium">{variant.label}</div>}
           <div className="text-xs text-black/60 dark:text-white/60">
             {variant.servings} people
-            {portionOz !== null && <> &middot; &asymp; {formatPortionOz(portionOz)} per person</>}
+            {portionLabel && <> &middot; &asymp; {portionLabel} per person</>}
             {savedBatches !== null && (
               <>
                 {" "}

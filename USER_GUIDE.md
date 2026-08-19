@@ -162,13 +162,17 @@ On an event page, pick a recipe from your library (or import/generate a new
 one directly into the event) and a course. New dishes default to the
 event's target headcount, rounded up to a whole number of pans/pots.
 
-Each dish's summary line shows an estimated portion size ("&asymp; 2 1/2 oz
-per person") alongside its headcount — the dish's total known ingredient
-weight divided across however many people it's scaled for. It's a rough
-gauge, not a plating instruction: ingredients with no determinable weight
-(a bare "3 eggs") aren't counted, so it can undercount a dish that's mostly
-unweighable ingredients. It disappears entirely if nothing in the dish
-could be weighed at all, rather than showing a made-up number.
+Each dish's summary line shows an estimated portion size ("&asymp; 5/8 cup
+/ 2 1/2 oz per person") alongside its headcount — the dish's total known
+ingredient weight and volume divided across however many people it's
+scaled for. It's a rough gauge, not a plating instruction: ingredients
+with no determinable weight or volume (a bare "3 eggs") aren't counted, so
+it can undercount a dish that's mostly unweighable ingredients. Weight and
+volume are computed independently and each can be missing on its own — a
+canned vegetable counted by cans still gets a cup estimate (via its known
+weight and typical density), a liquid with no matching density entry can
+still get an oz-only estimate. Either figure disappears on its own if it
+can't be determined, and the whole line disappears if neither can.
 
 ### Variants (allergen-free or modified batches)
 

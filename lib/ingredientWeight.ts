@@ -16,6 +16,9 @@ const DENSITY_TABLE: Array<{ keywords: string[]; gramsPerCup: number }> = [
   { keywords: ["cake flour"], gramsPerCup: 114 },
   { keywords: ["whole wheat flour"], gramsPerCup: 113 },
   { keywords: ["all-purpose flour", "all purpose flour", "flour"], gramsPerCup: 120 },
+  // Ahead of the plain "butter" entry below -- "peanut butter".includes("butter")
+  // is true, so peanut butter would otherwise silently match butter's density.
+  { keywords: ["peanut butter"], gramsPerCup: 258 },
   { keywords: ["butter"], gramsPerCup: 227 },
   { keywords: ["vegetable oil", "canola oil", "olive oil", "oil"], gramsPerCup: 218 },
   { keywords: ["heavy cream", "whipping cream"], gramsPerCup: 240 },
@@ -41,7 +44,6 @@ const DENSITY_TABLE: Array<{ keywords: string[]; gramsPerCup: number }> = [
   { keywords: ["cornstarch", "corn starch"], gramsPerCup: 128 },
   { keywords: ["panko"], gramsPerCup: 50 },
   { keywords: ["breadcrumbs", "bread crumbs"], gramsPerCup: 108 },
-  { keywords: ["peanut butter"], gramsPerCup: 258 },
   { keywords: ["ketchup"], gramsPerCup: 240 },
   { keywords: ["chopped onion", "diced onion", "onion"], gramsPerCup: 160 },
   { keywords: ["chopped celery", "diced celery", "celery"], gramsPerCup: 120 },
@@ -49,6 +51,20 @@ const DENSITY_TABLE: Array<{ keywords: string[]; gramsPerCup: number }> = [
   { keywords: ["poppy seed"], gramsPerCup: 140 },
   { keywords: ["sesame seed"], gramsPerCup: 144 },
   { keywords: ["salt"], gramsPerCup: 288 },
+  // Common canned vegetables/beans -- figures are for the canned, drained
+  // (or with-liquid, for tomatoes) form, since that's the overwhelmingly
+  // common case for a crowd-cooking side dish. A dry/uncooked version of
+  // the same ingredient would weigh meaningfully more per cup; this table
+  // doesn't distinguish, same "good enough for a rough estimate" tolerance
+  // as every other density figure here.
+  // Composite words checked before the shorter substrings they'd
+  // otherwise be caught by -- "chickpea" before "pea" (not "peas", since
+  // "chickpea" doesn't contain that), "sweet corn" before "corn".
+  { keywords: ["black bean", "kidney bean", "pinto bean", "navy bean", "garbanzo bean", "chickpea"], gramsPerCup: 175 },
+  { keywords: ["green bean"], gramsPerCup: 125 },
+  { keywords: ["sweet corn", "corn"], gramsPerCup: 165 },
+  { keywords: ["green peas", "peas"], gramsPerCup: 160 },
+  { keywords: ["diced tomato", "crushed tomato", "stewed tomato", "tomato sauce", "tomato"], gramsPerCup: 245 },
 ];
 
 export function densityGramsPerCup(description: string): number | null {

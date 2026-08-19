@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseIngredientLine } from "../ingredientParser";
-import { estimateGramsAtRawQuantity, formatGrams } from "../ingredientWeight";
+import { densityGramsPerCup, estimateGramsAtRawQuantity, formatGrams } from "../ingredientWeight";
 
 function grams(raw: string): number | null {
   return estimateGramsAtRawQuantity(parseIngredientLine(raw));
@@ -39,6 +39,26 @@ describe("estimateGramsAtRawQuantity", () => {
 
   it("returns null for needs-review lines with no parsed quantity", () => {
     expect(grams("Salt to taste")).toBeNull();
+  });
+});
+
+describe("densityGramsPerCup for canned vegetables/beans", () => {
+  it("does not let a composite word fall through to a shorter, wrong substring match", () => {
+    // "chickpea" contains "pea" and "chicken bean" isn't a thing, but this
+    // must hit the bean entry (175), not the plain peas entry (160).
+    expect(densityGramsPerCup("chickpeas, drained")).toBe(175);
+    expect(densityGramsPerCup("canned green peas")).toBe(160);
+  });
+
+  it("does not mistake peanuts/peanut butter for peas", () => {
+    expect(densityGramsPerCup("chopped peanuts")).toBeNull();
+    expect(densityGramsPerCup("peanut butter")).toBe(258);
+  });
+
+  it("recognizes common canned vegetables", () => {
+    expect(densityGramsPerCup("green beans, drained")).toBe(125);
+    expect(densityGramsPerCup("sweet corn, drained")).toBe(165);
+    expect(densityGramsPerCup("diced tomatoes")).toBe(245);
   });
 });
 
