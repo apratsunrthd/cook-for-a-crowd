@@ -279,9 +279,10 @@ can, a #5 can, or a 5/10/25/50 lb bag. Useful if you're buying from a
 warehouse club or restaurant supplier rather than a regular grocery store.
 Picking a size shows "→ buy N #10 cans" (always rounded up) right next to
 the item. The dropdown itself only appears on the interactive page (there's
-nothing to click on paper), but whatever you picked carries over to the
-printable/PDF view too — the converted "→ buy N" text prints right along
-with everything else.
+nothing to click on paper), but whatever you picked sticks — it's saved in
+your browser, so it's still applied if you edit something else on the page,
+reload, or open the printable/PDF view, where the converted "→ buy N" text
+prints right along with everything else.
 
 ## Printing
 

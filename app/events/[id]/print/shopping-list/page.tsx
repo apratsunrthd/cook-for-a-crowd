@@ -14,33 +14,10 @@ function pluralize(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
-/**
- * The "buy as" bulk-package selections made on the interactive event page
- * are plain client-side state, not persisted anywhere -- so without this,
- * opening the printable view (a fresh page, a fresh ShoppingList instance)
- * would silently reset every selection back to "as listed" and the
- * printed page just wouldn't show the conversion you picked. The
- * interactive page's "Open printable view" link encodes its current
- * selections into this param instead.
- */
-function parseBuyAsParam(value: string | string[] | undefined): Record<string, string> | undefined {
-  if (typeof value !== "string") return undefined;
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
-    if (!Object.values(parsed).every((v) => typeof v === "string")) return undefined;
-    return parsed as Record<string, string>;
-  } catch {
-    return undefined;
-  }
-}
-
 export default async function ShoppingListPrintPage({
   params,
-  searchParams,
 }: PageProps<"/events/[id]/print/shopping-list">) {
   const { id } = await params;
-  const { buyAs } = await searchParams;
   const db = getDb();
   const plan = getEventPlan(db, Number(id));
   if (!plan) notFound();
@@ -59,11 +36,7 @@ export default async function ShoppingListPrintPage({
         <PrintButton />
       </div>
 
-      <ShoppingList
-        items={shoppingList}
-        eventName={event.name}
-        initialPackagePresetId={parseBuyAsParam(buyAs)}
-      />
+      <ShoppingList items={shoppingList} eventName={event.name} eventId={event.id} />
 
       {drinks.length > 0 && (
         <div className="space-y-2">
