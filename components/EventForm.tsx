@@ -116,13 +116,22 @@ export function EventForm({ event }: { event?: Event }) {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
-      >
-        {saving ? "Saving…" : event ? "Save changes" : "Create event"}
-      </button>
+      <div className="flex gap-3">
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
+        >
+          {saving ? "Saving…" : event ? "Save changes" : "Create event"}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push(event ? `/events/${event.id}` : "/")}
+          className="rounded-md border border-black/20 dark:border-white/20 px-4 py-2 text-sm font-medium"
+        >
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

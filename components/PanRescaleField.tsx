@@ -81,6 +81,9 @@ export function PanRescaleField({
         >
           Use this size instead
         </button>
+        <button type="button" onClick={() => setShow(false)} className="text-black/60 dark:text-white/60 underline">
+          Cancel
+        </button>
       </div>
     </div>
   );

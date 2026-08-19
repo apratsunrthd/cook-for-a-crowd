@@ -41,14 +41,50 @@ separate backend), Anthropic's API for the optional AI features. See
 
 ## Getting started
 
+### Prerequisites
+
+- **Node.js 20 or later** (check with `node --version`).
+- A C/C++ build toolchain, needed the first time `npm install` compiles
+  `better-sqlite3`'s native addon:
+  - **macOS** — Xcode Command Line Tools: `xcode-select --install`
+  - **Linux** — `build-essential` and `python3` (e.g. `sudo apt install build-essential python3`)
+  - **Windows** — easiest via [WSL](https://learn.microsoft.com/windows/wsl/) using the Linux
+    instructions above; native Windows works too with the "Desktop development with C++"
+    Visual Studio workload, but WSL is the smoother path.
+- An [Anthropic API key](https://console.anthropic.com/settings/keys) — optional, only needed
+  for the "Generate with AI" recipe and drink-suggestion features. Everything else (import,
+  manual entry, scaling, shopping lists) works without one.
+
+### Install and run
+
 ```bash
+git clone https://github.com/apratsunrthd/cook-for-a-crowd.git
+cd cook-for-a-crowd
 npm install
 cp .env.example .env.local   # optional: add an ANTHROPIC_API_KEY for AI features
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). The SQLite database is
-created automatically at `data/cook-for-a-crowd.sqlite` on first run.
+created automatically at `data/cook-for-a-crowd.sqlite` on first run — no
+separate database setup needed. This is a single-user, run-it-yourself app;
+there's no auth and no multi-tenant support, by design (see `CLAUDE.md`).
+
+### Running it for real use
+
+This app isn't deployed anywhere — it's meant to run on your own machine
+(or a home server) for as long as you're using it:
+
+- `npm run dev` is fine for normal use; it doesn't need to be "production."
+  If you'd rather run a built version, `npm run build && npm start` works
+  the same way, just without hot-reload.
+- Back up `data/cook-for-a-crowd.sqlite` yourself if you care about the
+  recipes and events in it — it's a single file, gitignored, and not backed
+  up anywhere automatically. Copying it elsewhere (or into your own private
+  repo/cloud drive) is enough.
+- To keep it running in the background, use whatever you'd normally reach
+  for (`tmux`, `screen`, a `launchd`/`systemd` unit, `pm2`) — there's
+  nothing app-specific here.
 
 ## Testing
 

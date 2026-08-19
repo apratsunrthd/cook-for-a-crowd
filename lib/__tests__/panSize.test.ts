@@ -55,6 +55,21 @@ describe("servingsPerPan", () => {
   });
 });
 
+describe("steam table pan presets", () => {
+  it("includes the standard full/half/third/sixth/ninth sizes, each roughly the expected fraction of full", () => {
+    const full = PAN_PRESETS.find((p) => p.id === "steam-full")!.size;
+    const half = PAN_PRESETS.find((p) => p.id === "steam-half")!.size;
+    const third = PAN_PRESETS.find((p) => p.id === "steam-third")!.size;
+    const sixth = PAN_PRESETS.find((p) => p.id === "steam-sixth")!.size;
+    const ninth = PAN_PRESETS.find((p) => p.id === "steam-ninth")!.size;
+
+    expect(panAreaRatio(full, half)).toBeCloseTo(0.5, 1);
+    expect(panAreaRatio(full, third)).toBeCloseTo(1 / 3, 1);
+    expect(panAreaRatio(full, sixth)).toBeCloseTo(1 / 6, 1);
+    expect(panAreaRatio(full, ninth)).toBeCloseTo(1 / 9, 1);
+  });
+});
+
 describe("formatPanSize", () => {
   it("formats a rectangular pan", () => {
     expect(formatPanSize({ shape: "rectangle", widthIn: 9, heightIn: 13 })).toBe('9" x 13"');

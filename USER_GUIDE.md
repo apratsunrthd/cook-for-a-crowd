@@ -110,6 +110,11 @@ actually own (2, 4, 6, 8, 12, 16, 20, or 32 quarts) — never an arbitrary
 number — and are sized to comfortably fit the recipe's ingredients without
 needing to be filled to the brim.
 
+If you cook out of a commercial kitchen, the pan picker also includes
+standard steam table / hotel pan sizes (full, half, third, sixth, and
+ninth) alongside the usual home baking pans — pick whichever family
+matches the vessel you'll actually use.
+
 ### Changing a recipe's vessel later
 
 Open a saved recipe (`/recipes/[id]`) and the pan/pot field is right there,
@@ -235,6 +240,13 @@ store-bought items to remember. Each ingredient shows both its
 volume/count measurement and a gram/kilogram equivalent where it could be
 determined. Items with no findable quantity ("salt to taste") are listed
 separately, flagged for a manual check rather than silently dropped.
+
+For any item with a weight, a "Buy as" dropdown lets you convert it to a
+foodservice/bulk package count instead of the consumer size — a #10 can,
+a #5 can, or a 5/10/25/50 lb bag — useful if you're buying from a
+warehouse club or restaurant supplier rather than a regular grocery
+store. Picking a size shows "→ buy N #10 cans" (always rounded up) right
+next to the item, and it's included when you print.
 
 ## Printing
 

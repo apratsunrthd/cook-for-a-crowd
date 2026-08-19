@@ -33,6 +33,37 @@ export const PAN_PRESETS: PanPreset[] = [
     label: 'Full sheet pan (18" x 26")',
     size: { shape: "rectangle", widthIn: 18, heightIn: 26 },
   },
+  // Steam table / hotel pans -- a different standard from home baking sheet
+  // pans despite the similar full/half naming, for anyone with access to a
+  // commercial kitchen's steam table or chafing setup. Depth isn't tracked
+  // here, matching every other rectangular pan in this list (a 9x13 doesn't
+  // record depth either) -- just footprint, which is what area-ratio
+  // scaling actually uses.
+  {
+    id: "steam-full",
+    label: 'Full-size steam table pan (20¾" x 12¾")',
+    size: { shape: "rectangle", widthIn: 20.75, heightIn: 12.75 },
+  },
+  {
+    id: "steam-half",
+    label: 'Half-size steam table pan (12¾" x 10⅜")',
+    size: { shape: "rectangle", widthIn: 12.75, heightIn: 10.375 },
+  },
+  {
+    id: "steam-third",
+    label: 'Third-size steam table pan (12¾" x 6⅞")',
+    size: { shape: "rectangle", widthIn: 12.75, heightIn: 6.875 },
+  },
+  {
+    id: "steam-sixth",
+    label: 'Sixth-size steam table pan (6⅞" x 6⅜")',
+    size: { shape: "rectangle", widthIn: 6.875, heightIn: 6.375 },
+  },
+  {
+    id: "steam-ninth",
+    label: 'Ninth-size steam table pan (6⅞" x 4¼")',
+    size: { shape: "rectangle", widthIn: 6.875, heightIn: 4.25 },
+  },
   { id: "loaf-8x4", label: '8" x 4" loaf', size: { shape: "rectangle", widthIn: 8, heightIn: 4 } },
   { id: "loaf-9x5", label: '9" x 5" loaf', size: { shape: "rectangle", widthIn: 9, heightIn: 5 } },
   { id: "round-8", label: '8" round', size: { shape: "round", diameterIn: 8 } },

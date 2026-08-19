@@ -318,13 +318,30 @@ export function RecipeEditor({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
-      >
-        {saving ? "Saving…" : attachToEventId !== undefined ? "Save and add to event" : "Save recipe"}
-      </button>
+      <div className="flex gap-3">
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
+        >
+          {saving ? "Saving…" : attachToEventId !== undefined ? "Save and add to event" : "Save recipe"}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            router.push(
+              attachToEventId !== undefined
+                ? `/events/${attachToEventId}`
+                : recipeId !== undefined
+                  ? `/recipes/${recipeId}`
+                  : "/recipes",
+            )
+          }
+          className="rounded-md border border-black/20 dark:border-white/20 px-4 py-2 text-sm font-medium"
+        >
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

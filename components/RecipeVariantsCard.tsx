@@ -172,6 +172,18 @@ function VariantRow({
     router.refresh();
   }
 
+  // Discards any unsaved edits and closes the panel -- without this, closing
+  // and reopening the editor would still show whatever was typed, since the
+  // form fields are otherwise never reset back to the saved values.
+  function cancelEdit() {
+    setLabel(variant.label);
+    setServings(variant.servings);
+    setNotes(variant.notes ?? "");
+    setIngredientsText(variant.ingredients.map((i) => i.raw).join("\n"));
+    setVariantPanSize(variant.panSize);
+    setEditing(false);
+  }
+
   const displayIngredients = editing ? livePreview : ingredients;
 
   return (
@@ -192,8 +204,8 @@ function VariantRow({
           </div>
         </div>
         <div className="flex gap-3 text-xs print:hidden">
-          <button onClick={() => setEditing((v) => !v)} className="hover:underline">
-            {editing ? "Close" : "Edit"}
+          <button onClick={() => (editing ? cancelEdit() : setEditing(true))} className="hover:underline">
+            {editing ? "Cancel" : "Edit"}
           </button>
           <button
             onClick={async () => {
@@ -290,13 +302,22 @@ function VariantRow({
             minRows={3}
           />
 
-          <button
-            onClick={save}
-            disabled={saving}
-            className="rounded-md bg-black text-white dark:bg-white dark:text-black px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="rounded-md bg-black text-white dark:bg-white dark:text-black px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="rounded-md border border-black/20 dark:border-white/20 px-3 py-1.5 text-sm font-medium"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
@@ -378,6 +399,9 @@ function PanSizeCalculator({
         className="rounded-md border border-black/20 dark:border-white/20 px-2 py-1 font-medium"
       >
         Use this
+      </button>
+      <button type="button" onClick={() => setShow(false)} className="underline">
+        Cancel
       </button>
     </div>
   );
