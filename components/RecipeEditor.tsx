@@ -6,7 +6,7 @@ import { IngredientsField } from "@/components/IngredientsField";
 import { PanRescaleField } from "@/components/PanRescaleField";
 import { PanSizeField } from "@/components/PanSizeField";
 import { attachRecipeAction, getEventHeadcountAction } from "@/lib/actions/events";
-import { saveRecipeAction } from "@/lib/actions/recipes";
+import { saveRecipeAction, suggestPotServingsAction } from "@/lib/actions/recipes";
 import { parseIngredientLines } from "@/lib/ingredientParser";
 import { formatPanSize, vesselNoun, type PanSize } from "@/lib/panSize";
 import { formatScaledIngredientLine, scaleIngredients } from "@/lib/scale";
@@ -76,6 +76,7 @@ export function RecipeEditor({
   // of silently tagging it.
   const [pendingVesselChange, setPendingVesselChange] = useState<PanSize | null>(null);
   const [resizeTargetServings, setResizeTargetServings] = useState<number | "">("");
+  const [checkingCapacity, setCheckingCapacity] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [course, setCourse] = useState<Course>(initialCourse ?? "main");
@@ -107,11 +108,39 @@ export function RecipeEditor({
     if (newSize !== null && changed && servingsNumber !== null && servingsNumber > 0) {
       setPendingVesselChange(newSize);
       setResizeTargetServings("");
+      // Reset here (a plain event handler), not in the effect below, so the
+      // effect's body only ever sets state from the async callback.
+      setCheckingCapacity(newSize.shape === "pot");
       return;
     }
     setPanSize(newSize);
     setPanSizeVersion((v) => v + 1);
   }
+
+  // Double-checks the servings-to-vessel relationship for a pot with a real
+  // capacity estimate, rather than leaving the user to eyeball a number --
+  // pre-fills (never locks) the resize input once it resolves.
+  useEffect(() => {
+    if (!pendingVesselChange || pendingVesselChange.shape !== "pot") return;
+    const currentServingsNumber = servings === "" ? null : Number(servings);
+    if (!currentServingsNumber || currentServingsNumber <= 0) return;
+    let cancelled = false;
+    suggestPotServingsAction(
+      ingredientsText.split("\n").filter((line) => line.trim().length > 0),
+      currentServingsNumber,
+      pendingVesselChange.quartsCapacity ?? 0,
+    ).then((suggested) => {
+      if (cancelled) return;
+      setCheckingCapacity(false);
+      if (suggested !== null) setResizeTargetServings(suggested);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Only re-run when a new vessel change is initiated, not on every
+    // servings/ingredients keystroke while the dialog is open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingVesselChange]);
 
   function confirmServingsUnchanged() {
     if (!pendingVesselChange) return;
@@ -277,9 +306,9 @@ export function RecipeEditor({
           </div>
           {pendingVesselChange.shape === "pot" && (
             <p className="text-xs text-black/50 dark:text-white/50">
-              Think about how full a real pot that size would actually be with these quantities --
-              e.g. a 12-quart stockpot realistically cooks about 12-14 cups of dry rice, not 5-6 or
-              25-30.
+              {checkingCapacity
+                ? "Double-checking realistic capacity for this pot size…"
+                : `Double-checked against real pot capacity for this dish (e.g. a 12-quart stockpot realistically cooks about 12-14 cups of dry rice, not 5-6 or 25-30) -- the number above is a starting suggestion, adjust it if you know better.`}
             </p>
           )}
           <button type="button" onClick={cancelVesselChange} className="text-xs underline">

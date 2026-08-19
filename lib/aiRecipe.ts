@@ -30,7 +30,7 @@ const RECIPE_TOOL: Anthropic.Tool = {
         type: "string",
         enum: ["rectangle", "round", "pot"],
         description:
-          'The vessel this recipe is made in, if it has a specific size worth recording. A square pan is "rectangle" with equal width and height. Use "pot" for a stovetop pot/stockpot/Dutch oven recipe (e.g. rice, soup, chili) instead of a baking pan. Omit entirely when no specific vessel size applies.',
+          'The vessel this recipe is made in. REQUIRED (infer a sensible one, even if the request never mentions a size) for any dish normally made in a specific pan or pot -- baked/casserole dishes, rice, soups, chilis, pasta, beans, anything simmered or boiled all need one. A square pan is "rectangle" with equal width and height; "pot" is for stovetop pot/stockpot/Dutch oven dishes. Omit ONLY for genuinely vessel-agnostic dishes (a salad, a sandwich, a spice rub, a dip served cold).',
       },
       panWidthIn: { type: "number", description: "Pan width in inches, when panShape is rectangle." },
       panHeightIn: { type: "number", description: "Pan length in inches, when panShape is rectangle." },
@@ -87,7 +87,7 @@ export async function generateRecipeWithAI(prompt: string, course: Course): Prom
       messages: [
         {
           role: "user",
-          content: `Write a simple, practical home-cook recipe for: ${prompt.trim()}. Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". ${COURSE_GUIDANCE[course]} If the request mentions or implies a specific pan, dish, or pot size, size the servings count AND every ingredient quantity to realistically fill that vessel -- they must agree with each other and with a REAL vessel of that size's actual fill capacity, not just scale together arbitrarily. For a pot specifically, ground it in real cooking capacity: a 12-quart stockpot realistically cooks about 12-14 cups of dry rice, not 5-6 (too little, wastes the pot) and not 25-30 (won't fit/cook properly) -- the same logic applies to pasta, beans, soup, etc. Otherwise, size it for a normal single-batch serving count.`,
+          content: `Write a simple, practical home-cook recipe for: ${prompt.trim()}. Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". ${COURSE_GUIDANCE[course]} Always determine a specific pan or pot size for this dish, inferring one yourself from what's normally used even when the request doesn't mention a size -- rice and soup need a pot, a casserole needs a baking dish; only skip this for dishes that genuinely don't use a specific vessel (a salad, a sandwich). Size the servings count AND every ingredient quantity to realistically fill whatever vessel you land on -- they must agree with each other and with a REAL vessel of that size's actual fill capacity, not just scale together arbitrarily. For a pot specifically, ground it in real cooking capacity: a 12-quart stockpot realistically cooks about 12-14 cups of dry rice, not 5-6 (too little, wastes the pot) and not 25-30 (won't fit/cook properly) -- the same logic applies to pasta, beans, soup, etc. If the request itself mentions or implies a specific size, use that instead of picking your own.`,
         },
       ],
     });

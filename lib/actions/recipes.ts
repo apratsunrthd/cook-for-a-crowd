@@ -5,6 +5,7 @@ import { generateRecipeWithAI, RecipeGenerationError } from "../aiRecipe";
 import { getDb } from "../db";
 import { fillMissingIngredientDetails } from "../ingredientWeightAI";
 import { fillPanSizeGap } from "../panSizeAI";
+import { suggestServingsForPot } from "../vesselCapacityAI";
 import { detachRecipe as detachRecipeFromEvent } from "../repo/eventRecipes";
 import {
   DuplicateSourceUrlError,
@@ -84,6 +85,19 @@ export async function generateRecipeDraftAction(
     }
     return { ok: false, error: "Something went wrong generating that recipe." };
   }
+}
+
+/**
+ * Grounded "double-check" for how many servings a recipe would realistically
+ * make in a given pot -- used to pre-fill the vessel-change confirmation in
+ * RecipeEditor with a real suggestion instead of leaving the user to guess.
+ */
+export async function suggestPotServingsAction(
+  ingredientLines: string[],
+  currentServings: number,
+  quartsCapacity: number,
+): Promise<number | null> {
+  return suggestServingsForPot({ ingredientLines, currentServings, quartsCapacity });
 }
 
 export async function saveRecipeAction(
