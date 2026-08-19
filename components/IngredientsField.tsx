@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { parseIngredientLines } from "@/lib/ingredientParser";
+import { formatScaledIngredientLine, scaleIngredient } from "@/lib/scale";
 
 export function IngredientsField({
   id,
@@ -46,7 +47,11 @@ export function IngredientsField({
                 ? `— ${line.description} —`
                 : line.needsReview
                   ? `⚠ "${line.raw}" (no quantity found)`
-                  : `✓ ${line.quantity}${line.quantity2 ? `-${line.quantity2}` : ""} ${line.unit ?? ""} ${line.description}`}
+                  : // Reuse the canonical formatter (factor 1 = no actual
+                    // scaling) so this preview always matches what actually
+                    // gets saved, including a leading per-unit size like
+                    // "10 (14.5 oz) cans ...".
+                    `✓ ${formatScaledIngredientLine(scaleIngredient(line, 1))}`}
             </li>
           ))}
         </ul>

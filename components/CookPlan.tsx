@@ -1,10 +1,7 @@
-import { formatPanSize, servingsPerPan, vesselNoun, type PanSize } from "@/lib/panSize";
+import { formatPanSize, sameVesselFamily, servingsPerPan, vesselNoun, type PanSize } from "@/lib/panSize";
 import { batchesNeeded, formatScaledIngredient, scaleIngredients } from "@/lib/scale";
-import type { Course, Recipe } from "@/lib/types";
+import { COURSE_LABELS, COURSE_ORDER, type Course, type Recipe } from "@/lib/types";
 import type { VariantWithIngredients } from "./RecipeVariantsCard";
-
-const COURSE_LABELS: Record<Course, string> = { main: "Mains", side: "Sides", dessert: "Desserts" };
-const COURSE_ORDER: Course[] = ["main", "side", "dessert"];
 
 export interface CookPlanDish {
   recipe: Recipe;
@@ -84,10 +81,21 @@ function VariantPlan({
   showLabel: boolean;
 }) {
   const panSize: PanSize | null = variant.panSize ?? recipe.panSize;
+  // Area (sq in) and capacity (qt) aren't on a comparable scale, so a
+  // switch across the pot/pan family (recorded via PanSizeCalculator, e.g.
+  // moving a pot recipe to a steam table pan for serving) can't derive
+  // "people per vessel" from the recipe's native pan the way a same-family
+  // switch can -- that number only exists because the person setting it up
+  // entered it directly, and isn't persisted for reconstruction later. This
+  // still shows the chosen vessel, just without a batch count that would
+  // otherwise be a made-up number.
+  const knowsPerPanServings = panSize && recipe.panSize && sameVesselFamily(recipe.panSize, panSize);
   const perPanServings =
-    recipe.servings && panSize && recipe.panSize
+    recipe.servings && knowsPerPanServings && panSize && recipe.panSize
       ? servingsPerPan(recipe.servings, recipe.panSize, panSize)
-      : recipe.servings;
+      : knowsPerPanServings
+        ? recipe.servings
+        : null;
   const batches = perPanServings ? batchesNeeded(variant.servings, perPanServings) : null;
   const noun = vesselNoun(panSize);
   // formatPanSize already spells out "qt pot" for a pot, so only a pan
@@ -98,7 +106,9 @@ function VariantPlan({
     <div className="text-sm font-medium">
       {batches !== null
         ? `Make ${batches} ${batches === 1 ? noun : `${noun}s`}${panLabel}, ${perPanServings} people per ${noun}`
-        : `Make enough for ${variant.servings} people`}
+        : panSize
+          ? `Make enough for ${variant.servings} people, using ${formatPanSize(panSize)}${noun === "pot" ? "" : ` ${noun}`} -- split across as many as you need`
+          : `Make enough for ${variant.servings} people`}
       {showLabel && <> &mdash; {variant.label}</>}
       {variant.notes && (
         <span className="italic text-black/60 dark:text-white/60"> ({variant.notes})</span>

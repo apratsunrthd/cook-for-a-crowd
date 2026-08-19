@@ -47,6 +47,7 @@ export function aggregateIngredients(recipes: RecipeIngredients[]): ShoppingList
           quantity: null,
           unit: ingredient.unit,
           description: ingredient.description || ingredient.raw,
+          sizeAnnotation: ingredient.sizeAnnotation,
           needsReview: true,
           sources: [recipeName],
           grams: ingredient.grams,
@@ -73,6 +74,7 @@ export function aggregateIngredients(recipes: RecipeIngredients[]): ShoppingList
           quantity: value,
           unit: ingredient.unit,
           description: ingredient.description,
+          sizeAnnotation: ingredient.sizeAnnotation,
           needsReview: false,
           sources: [recipeName],
           grams: ingredient.grams,
@@ -89,7 +91,8 @@ export function formatShoppingListItem(item: ShoppingListItem): string {
     return item.description;
   }
   const unit = pluralizeUnit(item.unit, item.quantity);
-  const parts = [formatQuantity(item.quantity), unit, item.description].filter(
+  const sizeAnnotation = item.sizeAnnotation ? `(${item.sizeAnnotation})` : null;
+  const parts = [formatQuantity(item.quantity), sizeAnnotation, unit, item.description].filter(
     (part): part is string => !!part && part.length > 0,
   );
   const line = parts.join(" ");

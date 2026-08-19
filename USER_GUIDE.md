@@ -28,6 +28,7 @@ instructions (installing, running), see [README.md](README.md).
   - [Adding a drink manually](#adding-a-drink-manually)
   - [Suggesting a drink lineup with AI](#suggesting-a-drink-lineup-with-ai)
 - [Supplies](#supplies)
+- [The menu](#the-menu)
 - [The cook's plan](#the-cooks-plan)
 - [The shopping list](#the-shopping-list)
 - [Printing](#printing)
@@ -179,6 +180,14 @@ never ends up short. This is separate from the recipe-level vessel
 rescaling: this one is about "how many pans do I need," not "what does one
 pan make."
 
+You can pick any pan or pot here, including switching between the two
+families — say, moving a stovetop-pot recipe onto a steam table pan for
+serving at a commercial kitchen. A footprint (square inches) and a capacity
+(quarts) aren't on a comparable scale, so switching families asks you
+directly how many people one of the new vessel feeds, rather than guessing
+from an area ratio that wouldn't mean anything. Same-family switches (pot
+to pot, pan to pan) still compute that automatically.
+
 ## Store-bought and catered items
 
 Not everything is cooked from scratch — a store-bought dessert, a catering
@@ -220,6 +229,16 @@ standard per-person multipliers (no AI involved here, since these don't have
 the regional-preference ambiguity drinks do). Ice defaults to 1.5 lb per
 person. Add anything else with a custom name/unit/per-person amount.
 
+## The menu
+
+A guest-facing list of what's being served — just dish, drink, and
+store-bought item names by course, with no quantities, ingredients, pan
+sizes, or prep notes. Anything with more than one variant (e.g. a
+gluten-free version of a dish) shows as "(also available: Gluten-Free)".
+Has its own printable view, same as the cook's plan and shopping list, so
+you can print or save it as a PDF to share with attendees without handing
+them the kitchen's working documents.
+
 ## The cook's plan
 
 The day-of answer to "what do I actually make" — distinct from the meal plan
@@ -250,11 +269,13 @@ next to the item, and it's included when you print.
 
 ## Printing
 
-The cook's plan and shopping list both display inline on the event page —
-you don't have to leave it just to see them. Each also has an "Open
+The menu, cook's plan, and shopping list all display inline on the event
+page — you don't have to leave it just to see them. Each also has an "Open
 printable view" link to a dedicated, single-purpose page for actually
 printing: cleaner layout, nothing else on the page. You control when it
-prints — nothing opens a print dialog automatically.
+prints — nothing opens a print dialog automatically. Your browser's print
+dialog has a "Save as PDF" destination, so the same printable views work
+for exporting a PDF, not just printing on paper.
 
 ## How scaling and rounding work
 

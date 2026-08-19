@@ -24,6 +24,9 @@ See **[USER_GUIDE.md](USER_GUIDE.md)** for the full walkthrough of every feature
 - **Shopping list & cook's plan** — a combined shopping list across every dish
   at an event, and a cook's plan with per-pan/per-pot ingredient breakdowns.
   Both display inline and have a dedicated printable view.
+- **Guest menu** — a separate, quantity-free list of what's being served, by
+  course, with its own printable/PDF-exportable view for sharing with
+  attendees.
 - **Drinks planner** — plan teas, lemonade, soda, and water separately from
   food, sized by fluid ounces per person and by purchase unit (can, bottle,
   gallon jug). Can suggest a realistic lineup and headcount split with AI

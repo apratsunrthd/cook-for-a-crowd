@@ -3,6 +3,9 @@ import type { PanSize } from "./panSize";
 export type BufferMode = "percentage" | "flat";
 export type Course = "main" | "side" | "dessert";
 
+export const COURSE_LABELS: Record<Course, string> = { main: "Mains", side: "Sides", dessert: "Desserts" };
+export const COURSE_ORDER: Course[] = ["main", "side", "dessert"];
+
 export interface ParsedIngredient {
   raw: string;
   quantity: number | null;
@@ -10,6 +13,8 @@ export interface ParsedIngredient {
   /** Canonical singular unit id, e.g. "cup", "tablespoon" -- see unitFormat.ts for display pluralization. */
   unit: string | null;
   description: string;
+  /** Per-unit size, e.g. "14.5 oz" for "10 (14.5 oz) cans ..." -- kept separate from `description` (rather than baked in) so it can be re-emitted in its original leading position every time this line is reformatted after scaling. Baking it into `description` instead would drift it to a trailing position on the next parse, which reads as "total weight of the stated quantity" rather than "size of one unit" -- a real bug this field exists to prevent. */
+  sizeAnnotation: string | null;
   isGroupHeader: boolean;
   needsReview: boolean;
   /** Weight of this line at its raw (unscaled) quantity, in grams, if it could be determined -- see ingredientWeight.ts. Scales proportionally with quantity. */
@@ -76,6 +81,7 @@ export interface ScaledIngredient {
   /** Canonical singular unit id -- see unitFormat.ts for display pluralization. */
   unit: string | null;
   description: string;
+  sizeAnnotation: string | null;
   needsReview: boolean;
   grams: number | null;
 }
@@ -86,6 +92,8 @@ export interface ShoppingListItem {
   /** Canonical singular unit id -- see unitFormat.ts for display pluralization. */
   unit: string | null;
   description: string;
+  /** Per-unit size, e.g. "14.5 oz" for a can -- from the first merged ingredient line that had one. Recipes calling for a different can size for the same item is an accepted, documented limitation, same as the plural/singular merge gap below. */
+  sizeAnnotation: string | null;
   needsReview: boolean;
   sources: string[];
   grams: number | null;

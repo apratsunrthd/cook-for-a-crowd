@@ -4,6 +4,7 @@ import { AddRecipeToEvent } from "@/components/AddRecipeToEvent";
 import { CookPlan } from "@/components/CookPlan";
 import { DeleteEventButton } from "@/components/DeleteEventButton";
 import { DrinksCard } from "@/components/DrinksCard";
+import { Menu } from "@/components/Menu";
 import { PurchasedItemsCard } from "@/components/PurchasedItemsCard";
 import { RecipeVariantsCard } from "@/components/RecipeVariantsCard";
 import { ShoppingList } from "@/components/ShoppingList";
@@ -15,10 +16,7 @@ import { listEventRecipes } from "@/lib/repo/eventRecipes";
 import { listPurchasedItemsForEvent } from "@/lib/repo/purchasedItems";
 import { listRecipes } from "@/lib/repo/recipes";
 import { listSuppliesForEvent } from "@/lib/repo/supplies";
-import type { Course } from "@/lib/types";
-
-const COURSE_LABELS: Record<Course, string> = { main: "Mains", side: "Sides", dessert: "Desserts" };
-const COURSE_ORDER: Course[] = ["main", "side", "dessert"];
+import { COURSE_LABELS, COURSE_ORDER } from "@/lib/types";
 
 export default async function EventDetailPage({ params }: PageProps<"/events/[id]">) {
   const { id } = await params;
@@ -102,6 +100,16 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
 
       <section>
         <SuppliesCard eventId={event.id} defaultHeadcount={headcount} supplies={supplies} />
+      </section>
+
+      <section className="space-y-2">
+        <Menu eventName={event.name} eventDate={event.eventDate} dishes={dishes} purchasedItems={purchasedItems} drinks={drinks} />
+        <Link
+          href={`/events/${event.id}/print/menu`}
+          className="text-sm underline text-black/70 dark:text-white/70"
+        >
+          Open printable view &rarr;
+        </Link>
       </section>
 
       {dishes.length > 0 && (

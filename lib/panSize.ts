@@ -88,10 +88,22 @@ export const STANDARD_POT_QUARTS: number[] = PAN_PRESETS.filter((p) => p.size.sh
   .sort((a, b) => a - b);
 
 /**
+ * Whether two vessels are in the same pot-vs-pan family. Square inches of
+ * footprint and quarts of capacity aren't on a comparable scale, so a ratio
+ * between them (panAreaRatio, servingsPerPan) is only meaningful within a
+ * family -- callers computing "how many people does this vessel feed"
+ * across a pot/pan switch (e.g. green beans moving from a stovetop pot to a
+ * steam table pan for serving) need a real headcount from the user instead,
+ * not an area-ratio guess. See PanRescaleField and PanSizeCalculator.
+ */
+export function sameVesselFamily(a: PanSize, b: PanSize): boolean {
+  return (a.shape === "pot") === (b.shape === "pot");
+}
+
+/**
  * A single "capacity" number for a vessel -- square inches of footprint for
- * a baking pan, quarts for a pot. The two units are never compared against
- * each other in practice (nobody switches a casserole to a stockpot), so
- * sharing one function keeps every ratio/scaling call site shape-agnostic.
+ * a baking pan, quarts for a pot. Only meaningful when comparing two
+ * vessels in the same family -- see sameVesselFamily.
  */
 export function panArea(size: PanSize): number {
   if (size.shape === "round") {
@@ -125,12 +137,6 @@ export function servingsPerPan(nativeServings: number, nativeSize: PanSize, targ
 /** "pot" or "pan" -- for building UI copy that reads right for either vessel family. */
 export function vesselNoun(size: PanSize | null): string {
   return size?.shape === "pot" ? "pot" : "pan";
-}
-
-/** Presets in the same vessel family as `nativeSize` -- pots only offer other pots, pans only offer other pans, since switching families (e.g. a stockpot to a sheet pan) isn't a real choice anyone makes. */
-export function panPresetsForFamily(nativeSize: PanSize): PanPreset[] {
-  const nativeIsPot = nativeSize.shape === "pot";
-  return PAN_PRESETS.filter((p) => (p.size.shape === "pot") === nativeIsPot);
 }
 
 export function formatPanSize(size: PanSize): string {

@@ -70,6 +70,7 @@ export function scaleIngredient(ingredient: ParsedIngredient, factor: number): S
       quantity2: null,
       unit: ingredient.unit,
       description: ingredient.description,
+      sizeAnnotation: ingredient.sizeAnnotation,
       needsReview: ingredient.needsReview,
       grams: null,
     };
@@ -87,6 +88,9 @@ export function scaleIngredient(ingredient: ParsedIngredient, factor: number): S
     quantity2,
     unit: ingredient.unit,
     description: ingredient.description,
+    // A can's size doesn't change when you need more of them -- carried
+    // through unchanged, same as unit/description.
+    sizeAnnotation: ingredient.sizeAnnotation,
     needsReview: ingredient.needsReview,
     grams: ingredient.gramsAtRawQuantity === null ? null : ingredient.gramsAtRawQuantity * gramsFactor,
   };
@@ -107,7 +111,12 @@ export function scaleRecipe(recipe: Recipe, targetHeadcount: number): ScaledIngr
  * eggs, beaten" for lines with no leading quantity (shown as-is via `raw`
  * since there's nothing to scale). No gram suffix -- this is the form used
  * to repopulate an editable ingredients textbox, where a "(200 g)" would
- * get baked permanently into the description on the next parse.
+ * get baked permanently into the description on the next parse. A per-unit
+ * size annotation ("14.5 oz" for a can) is re-emitted in its original
+ * leading position -- "10 (14.5 oz) cans ..." -- rather than appended to
+ * the description, so it round-trips back through parseIngredientLine's
+ * leading-annotation match on the next parse instead of drifting into an
+ * ambiguous trailing position.
  */
 export function formatScaledIngredientLine(ingredient: ScaledIngredient): string {
   if (ingredient.quantity === null) {
@@ -119,7 +128,8 @@ export function formatScaledIngredientLine(ingredient: ScaledIngredient): string
       : `${formatQuantity(ingredient.quantity)}-${formatQuantity(ingredient.quantity2)}`;
   const displayQuantity = ingredient.quantity2 ?? ingredient.quantity;
   const unit = pluralizeUnit(ingredient.unit, displayQuantity);
-  const parts = [qty, unit, ingredient.description].filter(
+  const sizeAnnotation = ingredient.sizeAnnotation ? `(${ingredient.sizeAnnotation})` : null;
+  const parts = [qty, sizeAnnotation, unit, ingredient.description].filter(
     (part): part is string => !!part && part.length > 0,
   );
   return parts.join(" ");

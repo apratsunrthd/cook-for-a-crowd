@@ -7,7 +7,15 @@ import { IngredientsField } from "@/components/IngredientsField";
 import { createVariantAction, deleteVariantAction, updateVariantAction } from "@/lib/actions/events";
 import { detachRecipeAction } from "@/lib/actions/recipes";
 import { parseIngredientLines } from "@/lib/ingredientParser";
-import { formatPanSize, panAreaRatio, panPresetsForFamily, servingsPerPan, vesselNoun, type PanSize } from "@/lib/panSize";
+import {
+  PAN_PRESETS,
+  formatPanSize,
+  panAreaRatio,
+  sameVesselFamily,
+  servingsPerPan,
+  vesselNoun,
+  type PanSize,
+} from "@/lib/panSize";
 import { batchesNeeded, formatScaledIngredient, scaleIngredients } from "@/lib/scale";
 import type { ParsedIngredient, RecipeVariant, ScaledIngredient } from "@/lib/types";
 
@@ -336,6 +344,14 @@ function VariantRow({
   );
 }
 
+/**
+ * Offers every preset, not just ones in the recipe's native pot-vs-pan
+ * family -- a dish written for a stovetop pot can just as reasonably get
+ * served for an event from a steam table pan. Area (sq in) and capacity
+ * (qt) don't sit on a comparable scale though, so a same-family pick keeps
+ * the automatic area-ratio math; a cross-family pick asks directly how many
+ * people one of the new vessel feeds, since that number can't be computed.
+ */
 function PanSizeCalculator({
   recipeServings,
   recipePanSize,
@@ -350,53 +366,89 @@ function PanSizeCalculator({
   onApply: (servings: number, panSize: PanSize) => void;
 }) {
   const [show, setShow] = useState(selectedPanSize !== null);
-  const options = panPresetsForFamily(recipePanSize);
   const [targetPresetId, setTargetPresetId] = useState(
-    options.find((p) => selectedPanSize && formatPanSize(p.size) === formatPanSize(selectedPanSize))?.id ??
-      options[0].id,
+    PAN_PRESETS.find((p) => selectedPanSize && formatPanSize(p.size) === formatPanSize(selectedPanSize))?.id ??
+      PAN_PRESETS[0].id,
   );
+  const [crossFamilyServingsPerVessel, setCrossFamilyServingsPerVessel] = useState<number | "">(recipeServings);
   const noun = vesselNoun(recipePanSize);
 
-  const targetPreset = options.find((p) => p.id === targetPresetId) ?? options[0];
-  const ratio = panAreaRatio(recipePanSize, targetPreset.size);
+  const targetPreset = PAN_PRESETS.find((p) => p.id === targetPresetId) ?? PAN_PRESETS[0];
+  const sameFamily = sameVesselFamily(recipePanSize, targetPreset.size);
+  const ratio = sameFamily ? panAreaRatio(recipePanSize, targetPreset.size) : null;
   // How many people ONE pan of the newly-chosen size feeds -- not the
   // recipe's native per-pan count. The number of pans is then however many
   // of THIS pan it takes to cover the headcount we're currently working
   // toward, rounded up, never a batch count computed against the old pan.
-  const newServingsPerPan = servingsPerPan(recipeServings, recipePanSize, targetPreset.size);
-  const batches = batchesNeeded(currentServings, newServingsPerPan);
-  const totalServings = batches * newServingsPerPan;
+  const newServingsPerPan = sameFamily
+    ? servingsPerPan(recipeServings, recipePanSize, targetPreset.size)
+    : crossFamilyServingsPerVessel === ""
+      ? null
+      : Number(crossFamilyServingsPerVessel);
+  const batches = newServingsPerPan !== null ? batchesNeeded(currentServings, newServingsPerPan) : null;
+  const totalServings = batches !== null && newServingsPerPan !== null ? batches * newServingsPerPan : null;
 
   if (!show) {
     return (
       <button type="button" onClick={() => setShow(true)} className="text-xs underline">
-        Size by {noun} instead of typing servings
+        Size by pan or pot instead of typing servings
       </button>
     );
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md bg-black/[.03] dark:bg-white/[.06] p-2 text-xs">
-      <span>{noun === "pot" ? "Cooking" : "Baking"} this in</span>
+      <span>{targetPreset.size.shape === "pot" ? "Cooking" : "Baking"} this in</span>
       <select
         value={targetPresetId}
-        onChange={(e) => setTargetPresetId(e.target.value)}
+        onChange={(e) => {
+          const nextId = e.target.value;
+          setTargetPresetId(nextId);
+          const nextPreset = PAN_PRESETS.find((p) => p.id === nextId) ?? PAN_PRESETS[0];
+          if (!sameVesselFamily(recipePanSize, nextPreset.size)) setCrossFamilyServingsPerVessel(recipeServings);
+        }}
         className="rounded-md border border-black/20 dark:border-white/20 bg-transparent px-2 py-1"
       >
-        {options.map((p) => (
+        {PAN_PRESETS.map((p) => (
           <option key={p.id} value={p.id}>
             {p.label}
           </option>
         ))}
       </select>
-      <span>
-        &asymp; {ratio.toFixed(2)}x the recipe &rarr; {newServingsPerPan} people/{noun} &middot;{" "}
-        {pluralize(batches, noun)} needed for {currentServings} people &rarr; {totalServings} people total
-      </span>
+      {sameFamily ? (
+        <span>&asymp; {ratio!.toFixed(2)}x the recipe &rarr; {newServingsPerPan} people/{noun}</span>
+      ) : (
+        <>
+          <span className="text-black/60 dark:text-white/60">
+            A {vesselNoun(recipePanSize)} and a {vesselNoun(targetPreset.size)} don&apos;t compare by size directly --
+            how many people does one {vesselNoun(targetPreset.size)} feed?
+          </span>
+          <input
+            type="number"
+            min={1}
+            value={crossFamilyServingsPerVessel}
+            onChange={(e) =>
+              setCrossFamilyServingsPerVessel(e.target.value === "" ? "" : Number(e.target.value))
+            }
+            className="w-16 rounded-md border border-black/20 dark:border-white/20 bg-transparent px-2 py-1"
+            aria-label={`People fed per ${vesselNoun(targetPreset.size)}`}
+          />
+        </>
+      )}
+      {batches !== null && totalServings !== null && (
+        <span>
+          {pluralize(batches, vesselNoun(targetPreset.size))} needed for {currentServings} people &rarr;{" "}
+          {totalServings} people total
+        </span>
+      )}
       <button
         type="button"
-        onClick={() => onApply(totalServings, targetPreset.size)}
-        className="rounded-md border border-black/20 dark:border-white/20 px-2 py-1 font-medium"
+        disabled={totalServings === null}
+        onClick={() => {
+          if (totalServings === null) return;
+          onApply(totalServings, targetPreset.size);
+        }}
+        className="rounded-md border border-black/20 dark:border-white/20 px-2 py-1 font-medium disabled:opacity-50"
       >
         Use this
       </button>

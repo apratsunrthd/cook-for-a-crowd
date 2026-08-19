@@ -215,4 +215,31 @@ describe("formatScaledIngredientLine", () => {
     const scaled = scaleIngredient(parseIngredientLine("2-3 tablespoons olive oil"), 2);
     expect(formatScaledIngredientLine(scaled)).toBe("4-6 tablespoons olive oil");
   });
+
+  it("round-trips a per-can size annotation through repeated scale/reformat/reparse without drifting or losing the weight estimate", () => {
+    let ingredient = parseIngredientLine("10 (14.5 oz) cans green beans, drained");
+    expect(ingredient.unit).toBe("can");
+    expect(ingredient.gramsAtRawQuantity).not.toBeNull();
+
+    // Simulate what RecipeEditor actually does: scale, reformat to a plain
+    // line, then re-parse that line as if it were freshly typed/saved --
+    // twice, since the real bug only showed up on the *second* round trip.
+    for (let i = 0; i < 2; i++) {
+      const scaled = scaleIngredient(ingredient, 4 / 3);
+      const line = formatScaledIngredientLine(scaled);
+      // Stays in the leading "N (14.5 oz) cans ..." position, not trailing.
+      expect(line).toMatch(/^[\d\s/-]+\(14\.5 oz\)\s+cans?\b/);
+      ingredient = parseIngredientLine(line);
+      expect(ingredient.unit).toBe("can");
+    }
+
+    // Loose tolerance -- formatQuantity snaps to the nearest cooking
+    // fraction on every round trip through text, same as any other
+    // ingredient line. What this test actually guards is the unit and the
+    // weight estimate surviving repeated scale/reformat/reparse.
+    expect(ingredient.quantity).toBeCloseTo(10 * (4 / 3) ** 2, 0);
+    // Still computed from the real per-can size, not an AI guess that
+    // ignores how many cans are actually being bought.
+    expect(ingredient.gramsAtRawQuantity).toBeCloseTo(ingredient.quantity! * 411.07, 0);
+  });
 });

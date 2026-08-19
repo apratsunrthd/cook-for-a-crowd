@@ -103,4 +103,11 @@ describe("formatShoppingListItem", () => {
     const items = aggregateIngredients([{ recipeName: "A", ingredients: [scaled("Salt to taste")] }]);
     expect(formatShoppingListItem(items[0])).toBe("Salt to taste");
   });
+
+  it("keeps a per-can size annotation in its leading position, and the weight it implies", () => {
+    const items = aggregateIngredients([
+      { recipeName: "Green Beans", ingredients: [scaled("10 (14.5 oz) cans green beans, drained")] },
+    ]);
+    expect(formatShoppingListItem(items[0])).toBe("10 (14.5 oz) cans green beans, drained (4.11 kg)");
+  });
 });
