@@ -54,6 +54,19 @@ function DishPlan({ dish }: { dish: CookPlanDish }) {
   return (
     <div className="rounded-md border border-black/10 dark:border-white/10 p-3 space-y-3">
       <div className="font-medium">{recipe.name}</div>
+      {recipe.instructions && (
+        <div className="space-y-1">
+          <div className="text-xs font-medium uppercase tracking-wide text-black/50 dark:text-white/50">
+            Directions
+          </div>
+          <div className="text-sm whitespace-pre-line">{recipe.instructions}</div>
+          {variants.length > 1 && (
+            <p className="text-xs italic text-black/50 dark:text-white/50">
+              From the original recipe -- adjust for each variant&apos;s ingredient changes below.
+            </p>
+          )}
+        </div>
+      )}
       {variants.map(({ variant }) => (
         <VariantPlan key={variant.id} recipe={recipe} variant={variant} showLabel={variants.length > 1} />
       ))}

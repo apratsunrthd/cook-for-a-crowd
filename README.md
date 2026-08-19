@@ -5,6 +5,8 @@ headcount, get a shopping list, and print a cook's plan for the kitchen. Built f
 planning a Scout troop's quarterly court-of-honor meal, but works for any
 recipe-scaling-for-a-crowd problem.
 
+See **[USER_GUIDE.md](USER_GUIDE.md)** for the full walkthrough of every feature.
+
 ## What it does
 
 - **Import or generate recipes** — paste a URL, HTML, or plain recipe text, or
@@ -27,6 +29,9 @@ recipe-scaling-for-a-crowd problem.
   gallon jug). Can suggest a realistic lineup and headcount split with AI
   (e.g. "tea and lemonade" for a Southern event comes back weighted toward
   sweet tea, not an even split).
+- **Supplies & store-bought items** — one-click presets for plates, napkins,
+  utensils, and ice at standard per-person amounts, plus a place to track
+  dishes you're buying or ordering instead of cooking.
 
 ## Stack
 

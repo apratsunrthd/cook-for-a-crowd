@@ -64,6 +64,15 @@ const COURSE_GUIDANCE: Record<Course, string> = {
     "This is a dessert. Use a modest, realistic per-person portion -- at a group event people often take a smaller taste of dessert, not a full stand-alone dessert serving.",
 };
 
+/** A previously-generated draft plus what the user didn't like about it, for a revision pass instead of a fresh roll. */
+export interface RecipeRevisionContext {
+  name: string;
+  servings: number | null;
+  ingredientLines: string[];
+  instructions: string | null;
+  feedback: string;
+}
+
 let client: Anthropic | null = null;
 
 function getClient(): Anthropic {
@@ -80,6 +89,7 @@ export async function generateRecipeWithAI(
   prompt: string,
   course: Course,
   targetHeadcount?: number | null,
+  revision?: RecipeRevisionContext | null,
 ): Promise<ImportedRecipeDraft> {
   const anthropic = getClient();
 
@@ -87,6 +97,10 @@ export async function generateRecipeWithAI(
     targetHeadcount && targetHeadcount > 0
       ? `Size the servings count AND every ingredient quantity for exactly ${targetHeadcount} people -- not a generic single batch, the actual target headcount.`
       : "Size it for a normal single-batch serving count.";
+
+  const introduction = revision
+    ? `You previously wrote this recipe for the request "${prompt.trim()}":\nName: ${revision.name}\nServings: ${revision.servings ?? "unknown"}\nIngredients:\n${revision.ingredientLines.join("\n")}\nInstructions:\n${revision.instructions ?? ""}\n\nThe user has this feedback on it: "${revision.feedback.trim()}"\n\nRevise the recipe to address the feedback -- keep everything else about it reasonable unless the feedback implies otherwise.`
+    : `Write a simple, practical home-cook recipe for: ${prompt.trim()}.`;
 
   let response: Anthropic.Message;
   try {
@@ -99,7 +113,7 @@ export async function generateRecipeWithAI(
       messages: [
         {
           role: "user",
-          content: `Write a simple, practical home-cook recipe for: ${prompt.trim()}. Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". ${COURSE_GUIDANCE[course]} ${servingsInstruction}
+          content: `${introduction} Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". ${COURSE_GUIDANCE[course]} ${servingsInstruction}
 
 Always determine a specific pan or pot size for this dish, inferring one yourself even when the request doesn't mention a size -- rice and soup need a pot, a casserole needs a baking dish; only skip this for genuinely vessel-agnostic dishes (a salad, a sandwich).
 

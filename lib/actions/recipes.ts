@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { generateRecipeWithAI, RecipeGenerationError } from "../aiRecipe";
+import { generateRecipeWithAI, RecipeGenerationError, type RecipeRevisionContext } from "../aiRecipe";
 import { getDb } from "../db";
 import { fillMissingIngredientDetails } from "../ingredientWeightAI";
 import { fillPanSizeGap } from "../panSizeAI";
@@ -84,6 +84,37 @@ export async function generateRecipeDraftAction(
       return { ok: false, error: err.message };
     }
     return { ok: false, error: "Something went wrong generating that recipe." };
+  }
+}
+
+/** A "try again" is just a fresh call with the same prompt -- sampling variance alone gives a different result. */
+export async function regenerateRecipeDraftAction(
+  prompt: string,
+  course: Course,
+  targetHeadcount?: number | null,
+): Promise<ActionResult<ImportedRecipeDraft>> {
+  return generateRecipeDraftAction(prompt, course, targetHeadcount);
+}
+
+/** Revises an AI-generated draft the user doesn't like, incorporating their feedback, instead of a blind reroll. */
+export async function reviseRecipeDraftAction(
+  prompt: string,
+  currentDraft: Omit<RecipeRevisionContext, "feedback">,
+  feedback: string,
+  course: Course,
+  targetHeadcount?: number | null,
+): Promise<ActionResult<ImportedRecipeDraft>> {
+  if (!feedback.trim()) {
+    return { ok: false, error: "Describe what you'd like changed first." };
+  }
+  try {
+    const draft = await generateRecipeWithAI(prompt, course, targetHeadcount, { ...currentDraft, feedback });
+    return { ok: true, data: draft };
+  } catch (err) {
+    if (err instanceof RecipeGenerationError) {
+      return { ok: false, error: err.message };
+    }
+    return { ok: false, error: "Something went wrong revising that recipe." };
   }
 }
 
