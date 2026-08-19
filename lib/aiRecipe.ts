@@ -1,7 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { parseIngredientLines } from "./ingredientParser";
+import { STANDARD_POT_QUARTS } from "./panSize";
 import { toolInputToPanSize } from "./panSizeAI";
 import { guessPanSize } from "./panSizeExtract";
+import { correctPotSizeForBulkIngredient } from "./potCapacity";
 import type { ImportedRecipeDraft } from "./recipeImport";
 import type { Course } from "./types";
 
@@ -37,8 +39,9 @@ const RECIPE_TOOL: Anthropic.Tool = {
       panDiameterIn: { type: "number", description: "Pan diameter in inches, when panShape is round." },
       panQuartsCapacity: {
         type: "number",
+        enum: STANDARD_POT_QUARTS,
         description:
-          'Pot capacity in quarts, when panShape is pot. Must reflect a REALISTIC fill for that pot, not just scale linearly with servings -- a 12-quart stockpot realistically cooks about 12-14 cups of dry rice (with its water) at a rolling boil, not 5-6 and not 25-30. Ground this in how full a real pot of that size would actually be with the ingredient quantities you wrote, the same way you\'d judge a baking pan\'s size from a batter\'s volume.',
+          "Pot capacity in quarts, when panShape is pot. MUST be one of these standard sizes people actually own -- pick the SMALLEST one that comfortably fits the ingredient quantities with reasonable headroom for a boil/simmer. There is no requirement to fill a pot to its maximum capacity: 2 cups of dry rice belongs in the 2-quart pot, not a 3-quart or larger one just because it also technically holds it. A 12-quart stockpot's realistic max is around 12-14 cups of dry rice, but that's a ceiling, not a target -- don't scale a small batch up just to fill a bigger pot.",
       },
     },
     required: ["name", "servings", "ingredients", "instructions"],
@@ -73,8 +76,17 @@ function getClient(): Anthropic {
   return client;
 }
 
-export async function generateRecipeWithAI(prompt: string, course: Course): Promise<ImportedRecipeDraft> {
+export async function generateRecipeWithAI(
+  prompt: string,
+  course: Course,
+  targetHeadcount?: number | null,
+): Promise<ImportedRecipeDraft> {
   const anthropic = getClient();
+
+  const servingsInstruction =
+    targetHeadcount && targetHeadcount > 0
+      ? `Size the servings count AND every ingredient quantity for exactly ${targetHeadcount} people -- not a generic single batch, the actual target headcount.`
+      : "Size it for a normal single-batch serving count.";
 
   let response: Anthropic.Message;
   try {
@@ -87,7 +99,13 @@ export async function generateRecipeWithAI(prompt: string, course: Course): Prom
       messages: [
         {
           role: "user",
-          content: `Write a simple, practical home-cook recipe for: ${prompt.trim()}. Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". ${COURSE_GUIDANCE[course]} Always determine a specific pan or pot size for this dish, inferring one yourself from what's normally used even when the request doesn't mention a size -- rice and soup need a pot, a casserole needs a baking dish; only skip this for dishes that genuinely don't use a specific vessel (a salad, a sandwich). Size the servings count AND every ingredient quantity to realistically fill whatever vessel you land on -- they must agree with each other and with a REAL vessel of that size's actual fill capacity, not just scale together arbitrarily. For a pot specifically, ground it in real cooking capacity: a 12-quart stockpot realistically cooks about 12-14 cups of dry rice, not 5-6 (too little, wastes the pot) and not 25-30 (won't fit/cook properly) -- the same logic applies to pasta, beans, soup, etc. If the request itself mentions or implies a specific size, use that instead of picking your own.`,
+          content: `Write a simple, practical home-cook recipe for: ${prompt.trim()}. Keep ingredient lines in standard recipe format, e.g. "2 cups flour" or "1 (15 oz) can black beans". ${COURSE_GUIDANCE[course]} ${servingsInstruction}
+
+Always determine a specific pan or pot size for this dish, inferring one yourself even when the request doesn't mention a size -- rice and soup need a pot, a casserole needs a baking dish; only skip this for genuinely vessel-agnostic dishes (a salad, a sandwich).
+
+When picking a pot size, base it ONLY on how much of the bulk ingredient (rice, pasta, beans, the total liquid, etc.) the recipe actually calls for -- NOT on the headcount or servings number directly, and NOT by assuming a bigger headcount needs a bigger pot. Use real capacity guidelines: a 2-quart pot realistically holds about 2 cups of dry rice, a 6-quart pot about 6-7 cups, a 12-quart pot about 12-14 cups, a 20-quart pot about 20-24 cups; a soup or chili pot can fill closer to its full rated volume (roughly 3.5-4 cups of liquid per quart) since it's mostly liquid. Pick the SMALLEST standard size (2, 4, 6, 8, 12, 16, 20, or 32 quarts) whose realistic capacity comfortably covers the bulk ingredient quantity you actually wrote -- there's no requirement to fill it to the brim, and a large headcount does not by itself justify a large pot if the resulting ingredient quantity is modest.
+
+If the request itself mentions or implies a specific size, use that instead of picking your own.`,
         },
       ],
     });
@@ -121,7 +139,9 @@ export async function generateRecipeWithAI(prompt: string, course: Course): Prom
     panQuartsCapacity?: number;
   };
 
-  const panSize =
+  const ingredients = parseIngredientLines(data.ingredients);
+
+  const rawPanSize =
     toolInputToPanSize({
       found: !!data.panShape,
       shape: data.panShape,
@@ -130,13 +150,17 @@ export async function generateRecipeWithAI(prompt: string, course: Course): Prom
       diameterIn: data.panDiameterIn,
       quartsCapacity: data.panQuartsCapacity,
     }) ?? guessPanSize({ name: data.name, instructions: data.instructions, ingredientLines: data.ingredients });
+  // Sonnet is unreliable at picking the smallest of the standard pot sizes
+  // even with explicit numeric guidance -- recompute it deterministically
+  // from the recipe's own bulk ingredient quantity instead of trusting it.
+  const panSize = correctPotSizeForBulkIngredient(ingredients, rawPanSize);
 
   return {
     name: data.name,
     sourceUrl: null,
     servings: data.servings,
     rawYieldText: null,
-    ingredients: parseIngredientLines(data.ingredients),
+    ingredients,
     instructions: data.instructions,
     imageUrl: null,
     panSize,

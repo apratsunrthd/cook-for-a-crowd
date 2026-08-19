@@ -51,6 +51,11 @@ export const PAN_PRESETS: PanPreset[] = [
   { id: "pot-32qt", label: "32 qt stock pot (very large)", size: { shape: "pot", quartsCapacity: 32 } },
 ];
 
+/** Standard pot sizes in quarts, smallest first -- the only sizes anyone actually owns, and the only ones a vessel suggestion (human or AI) should ever land on. */
+export const STANDARD_POT_QUARTS: number[] = PAN_PRESETS.filter((p) => p.size.shape === "pot")
+  .map((p) => p.size.quartsCapacity as number)
+  .sort((a, b) => a - b);
+
 /**
  * A single "capacity" number for a vessel -- square inches of footprint for
  * a baking pan, quarts for a pot. The two units are never compared against

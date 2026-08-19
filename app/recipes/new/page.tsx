@@ -1,8 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { RecipeEditor, type RecipeDraft } from "@/components/RecipeEditor";
+import { getEventHeadcountAction } from "@/lib/actions/events";
 import { generateRecipeDraftAction, importRecipeDraftAction } from "@/lib/actions/recipes";
 import type { ImportedRecipeDraft } from "@/lib/recipeImport";
 import type { Course } from "@/lib/types";
@@ -32,6 +33,12 @@ function NewRecipeForm() {
   const [draft, setDraft] = useState<RecipeDraft | null>(null);
   const [initialCourse, setInitialCourse] = useState<Course>("main");
   const [started, setStarted] = useState(false);
+  const [eventHeadcount, setEventHeadcount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (attachToEventId === undefined) return;
+    getEventHeadcountAction(attachToEventId).then(setEventHeadcount);
+  }, [attachToEventId]);
 
   function applyDraft(data: ImportedRecipeDraft) {
     setDraft({
@@ -64,7 +71,7 @@ function NewRecipeForm() {
     e.preventDefault();
     setGenerating(true);
     setAiError(null);
-    const result = await generateRecipeDraftAction(aiPrompt, aiCourse);
+    const result = await generateRecipeDraftAction(aiPrompt, aiCourse, eventHeadcount);
     setGenerating(false);
     if (!result.ok) {
       setAiError(result.error);
@@ -147,6 +154,8 @@ function NewRecipeForm() {
             <p className="text-xs text-black/50 dark:text-white/50">
               Course affects portion sizing -- sides and desserts get smaller, more realistic
               per-person amounts than a main.
+              {eventHeadcount !== null &&
+                ` Sized directly for this event's ${eventHeadcount}-person target headcount.`}
             </p>
             {aiError && <p className="text-sm text-red-600">{aiError}</p>}
           </form>

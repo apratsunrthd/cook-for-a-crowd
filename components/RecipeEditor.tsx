@@ -6,7 +6,7 @@ import { IngredientsField } from "@/components/IngredientsField";
 import { PanRescaleField } from "@/components/PanRescaleField";
 import { PanSizeField } from "@/components/PanSizeField";
 import { attachRecipeAction, getEventHeadcountAction } from "@/lib/actions/events";
-import { saveRecipeAction, suggestPotServingsAction } from "@/lib/actions/recipes";
+import { saveRecipeAction } from "@/lib/actions/recipes";
 import { parseIngredientLines } from "@/lib/ingredientParser";
 import { formatPanSize, vesselNoun, type PanSize } from "@/lib/panSize";
 import { formatScaledIngredientLine, scaleIngredients } from "@/lib/scale";
@@ -76,7 +76,6 @@ export function RecipeEditor({
   // of silently tagging it.
   const [pendingVesselChange, setPendingVesselChange] = useState<PanSize | null>(null);
   const [resizeTargetServings, setResizeTargetServings] = useState<number | "">("");
-  const [checkingCapacity, setCheckingCapacity] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [course, setCourse] = useState<Course>(initialCourse ?? "main");
@@ -107,40 +106,15 @@ export function RecipeEditor({
     const changed = panSizeKey(newSize) !== panSizeKey(panSize);
     if (newSize !== null && changed && servingsNumber !== null && servingsNumber > 0) {
       setPendingVesselChange(newSize);
-      setResizeTargetServings("");
-      // Reset here (a plain event handler), not in the effect below, so the
-      // effect's body only ever sets state from the async callback.
-      setCheckingCapacity(newSize.shape === "pot");
+      // Default to the event's actual target headcount when known -- the
+      // whole point of asking is to size for how many people you're really
+      // cooking for, not to guess at how full a vessel should be.
+      setResizeTargetServings(eventHeadcount ?? servingsNumber);
       return;
     }
     setPanSize(newSize);
     setPanSizeVersion((v) => v + 1);
   }
-
-  // Double-checks the servings-to-vessel relationship for a pot with a real
-  // capacity estimate, rather than leaving the user to eyeball a number --
-  // pre-fills (never locks) the resize input once it resolves.
-  useEffect(() => {
-    if (!pendingVesselChange || pendingVesselChange.shape !== "pot") return;
-    const currentServingsNumber = servings === "" ? null : Number(servings);
-    if (!currentServingsNumber || currentServingsNumber <= 0) return;
-    let cancelled = false;
-    suggestPotServingsAction(
-      ingredientsText.split("\n").filter((line) => line.trim().length > 0),
-      currentServingsNumber,
-      pendingVesselChange.quartsCapacity ?? 0,
-    ).then((suggested) => {
-      if (cancelled) return;
-      setCheckingCapacity(false);
-      if (suggested !== null) setResizeTargetServings(suggested);
-    });
-    return () => {
-      cancelled = true;
-    };
-    // Only re-run when a new vessel change is initiated, not on every
-    // servings/ingredients keystroke while the dialog is open.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingVesselChange]);
 
   function confirmServingsUnchanged() {
     if (!pendingVesselChange) return;
@@ -276,7 +250,7 @@ export function RecipeEditor({
           <p>
             Recording this as {formatPanSize(pendingVesselChange)}. This recipe currently has{" "}
             {servings} servings -- does a {vesselNoun(pendingVesselChange)} that size actually make about{" "}
-            {servings} servings of this dish, or should the recipe be resized to fill it?
+            {servings} servings of this dish, or are you cooking for a different number of people?
           </p>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <button
@@ -286,14 +260,14 @@ export function RecipeEditor({
             >
               Yes, {servings} is right for this {vesselNoun(pendingVesselChange)}
             </button>
-            <span>or a {vesselNoun(pendingVesselChange)} of this really makes about</span>
+            <span>or I&apos;m actually cooking for about</span>
             <input
               type="number"
               min={1}
               value={resizeTargetServings}
               onChange={(e) => setResizeTargetServings(e.target.value === "" ? "" : Number(e.target.value))}
               className="w-20 rounded-md border border-black/20 dark:border-white/20 bg-transparent px-2 py-1"
-              aria-label="Actual servings for this vessel"
+              aria-label="How many people you're actually cooking for"
             />
             <button
               type="button"
@@ -301,16 +275,14 @@ export function RecipeEditor({
               disabled={resizeTargetServings === ""}
               className="rounded-md border border-black/20 dark:border-white/20 px-2 py-1 font-medium disabled:opacity-50"
             >
-              servings -- resize to match
+              people -- resize to match
             </button>
           </div>
-          {pendingVesselChange.shape === "pot" && (
-            <p className="text-xs text-black/50 dark:text-white/50">
-              {checkingCapacity
-                ? "Double-checking realistic capacity for this pot size…"
-                : `Double-checked against real pot capacity for this dish (e.g. a 12-quart stockpot realistically cooks about 12-14 cups of dry rice, not 5-6 or 25-30) -- the number above is a starting suggestion, adjust it if you know better.`}
-            </p>
-          )}
+          <p className="text-xs text-black/50 dark:text-white/50">
+            {eventHeadcount !== null
+              ? `Pre-filled with this event's target headcount (${eventHeadcount}) -- adjust if this dish should cover a different number.`
+              : "The recipe scales exactly to whatever headcount you enter -- no need to fill the vessel to its maximum capacity."}
+          </p>
           <button type="button" onClick={cancelVesselChange} className="text-xs underline">
             Cancel
           </button>
