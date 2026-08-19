@@ -17,6 +17,7 @@ import {
   type PanSize,
 } from "@/lib/panSize";
 import { batchesNeeded, formatScaledIngredient, scaleIngredients } from "@/lib/scale";
+import { estimatePortionOz, formatPortionOz } from "@/lib/servingSize";
 import type { ParsedIngredient, RecipeVariant, ScaledIngredient } from "@/lib/types";
 
 export interface VariantWithIngredients {
@@ -193,6 +194,11 @@ function VariantRow({
   }
 
   const displayIngredients = editing ? livePreview : ingredients;
+  // Rough gauge of portion size -- total known ingredient weight divided
+  // across the headcount this variant is scaled for. Off the *saved*
+  // ingredients, matching the also-saved `variant.servings` shown right
+  // next to it, rather than whatever's being drafted in the editor.
+  const portionOz = ingredients ? estimatePortionOz(ingredients, variant.servings) : null;
 
   return (
     <div className="rounded-md bg-black/[.02] dark:bg-white/[.04] p-3 space-y-2">
@@ -201,6 +207,7 @@ function VariantRow({
           {showLabel && <div className="text-sm font-medium">{variant.label}</div>}
           <div className="text-xs text-black/60 dark:text-white/60">
             {variant.servings} people
+            {portionOz !== null && <> &middot; &asymp; {formatPortionOz(portionOz)} per person</>}
             {savedBatches !== null && (
               <>
                 {" "}

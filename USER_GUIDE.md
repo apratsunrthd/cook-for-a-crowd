@@ -162,6 +162,14 @@ On an event page, pick a recipe from your library (or import/generate a new
 one directly into the event) and a course. New dishes default to the
 event's target headcount, rounded up to a whole number of pans/pots.
 
+Each dish's summary line shows an estimated portion size ("&asymp; 2 1/2 oz
+per person") alongside its headcount — the dish's total known ingredient
+weight divided across however many people it's scaled for. It's a rough
+gauge, not a plating instruction: ingredients with no determinable weight
+(a bare "3 eggs") aren't counted, so it can undercount a dish that's mostly
+unweighable ingredients. It disappears entirely if nothing in the dish
+could be weighed at all, rather than showing a made-up number.
+
 ### Variants (allergen-free or modified batches)
 
 A dish can have more than one **variant** — e.g. a "Standard" batch and a
