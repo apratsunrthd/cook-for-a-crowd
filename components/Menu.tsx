@@ -44,12 +44,7 @@ export function Menu({
 
   return (
     <div className="space-y-6 print:break-inside-avoid">
-      <div className="print:hidden">
-        <h2 className="text-lg font-semibold">Menu</h2>
-        <p className="text-sm text-black/60 dark:text-white/60">
-          Just what&apos;s being served -- for sharing with guests, not the kitchen.
-        </p>
-      </div>
+      <h2 className="text-lg font-semibold print:hidden">Menu</h2>
       <div className="hidden print:block text-center space-y-1 mb-4">
         <h1 className="text-2xl font-semibold">{eventName}</h1>
         {eventDate && <p className="text-sm text-black/60 dark:text-white/60">{eventDate}</p>}

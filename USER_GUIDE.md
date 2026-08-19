@@ -272,12 +272,16 @@ volume/count measurement and a gram/kilogram equivalent where it could be
 determined. Items with no findable quantity ("salt to taste") are listed
 separately, flagged for a manual check rather than silently dropped.
 
-For any item with a weight, a "Buy as" dropdown lets you convert it to a
-foodservice/bulk package count instead of the consumer size — a #10 can,
-a #5 can, or a 5/10/25/50 lb bag — useful if you're buying from a
-warehouse club or restaurant supplier rather than a regular grocery
-store. Picking a size shows "→ buy N #10 cans" (always rounded up) right
-next to the item, and it's included when you print.
+For any item that's actually sold that way — canned goods, or a dry bulk
+staple like flour, sugar, or rice — a "Buy as" dropdown lets you convert it
+to a foodservice/bulk package count instead of the consumer size: a #10
+can, a #5 can, or a 5/10/25/50 lb bag. Useful if you're buying from a
+warehouse club or restaurant supplier rather than a regular grocery store.
+Picking a size shows "→ buy N #10 cans" (always rounded up) right next to
+the item. The dropdown itself only appears on the interactive page (there's
+nothing to click on paper), but whatever you picked carries over to the
+printable/PDF view too — the converted "→ buy N" text prints right along
+with everything else.
 
 ## Printing
 

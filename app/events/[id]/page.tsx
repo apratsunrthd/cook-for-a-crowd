@@ -125,13 +125,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
       )}
 
       <section className="space-y-2">
-        <ShoppingList items={shoppingList} eventName={event.name} />
-        <Link
-          href={`/events/${event.id}/print/shopping-list`}
-          className="text-sm underline text-black/70 dark:text-white/70"
-        >
-          Open printable view &rarr;
-        </Link>
+        <ShoppingList items={shoppingList} eventName={event.name} eventId={event.id} showPrintLink />
       </section>
     </div>
   );

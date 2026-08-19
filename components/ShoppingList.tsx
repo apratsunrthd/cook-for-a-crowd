@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   FOODSERVICE_PACKAGE_PRESETS,
@@ -15,14 +16,39 @@ function pluralize(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
-export function ShoppingList({ items, eventName }: { items: ShoppingListItem[]; eventName: string }) {
+export function ShoppingList({
+  items,
+  eventName,
+  eventId,
+  showPrintLink = false,
+  initialPackagePresetId,
+}: {
+  items: ShoppingListItem[];
+  eventName: string;
+  /** Needed to build the "Open printable view" link -- omit when this instance IS the print page (no point linking to itself). */
+  eventId?: number;
+  showPrintLink?: boolean;
+  /** Seeds the "buy as" selections from the interactive page's own choices, passed via the printable view's URL -- see the print/shopping-list page. */
+  initialPackagePresetId?: Record<string, string>;
+}) {
   const confirmed = items.filter((i) => !i.needsReview);
   const needsReview = items.filter((i) => i.needsReview);
   // Buying in bulk (a #10 can instead of a consumer-size one) is a per-trip
   // choice, not something worth persisting to the recipe or the event --
   // this is plain client-side state that recomputes from the same
-  // aggregated weight already shown, never stored.
-  const [packagePresetId, setPackagePresetId] = useState<Record<string, string>>({});
+  // aggregated weight already shown, never stored in the database. It's
+  // carried over to the printable view via a URL param instead (see
+  // printHref below), so choosing a bulk size doesn't silently vanish the
+  // moment you open the page meant for actually taking to the store.
+  const [packagePresetId, setPackagePresetId] = useState<Record<string, string>>(
+    initialPackagePresetId ?? {},
+  );
+
+  const hasSelections = Object.keys(packagePresetId).length > 0;
+  const printHref =
+    eventId !== undefined
+      ? `/events/${eventId}/print/shopping-list${hasSelections ? `?buyAs=${encodeURIComponent(JSON.stringify(packagePresetId))}` : ""}`
+      : null;
 
   return (
     <div className="space-y-3">
@@ -97,6 +123,12 @@ export function ShoppingList({ items, eventName }: { items: ShoppingListItem[]; 
             </>
           )}
         </ul>
+      )}
+
+      {showPrintLink && printHref && (
+        <Link href={printHref} className="text-sm underline text-black/70 dark:text-white/70 print:hidden">
+          Open printable view &rarr;
+        </Link>
       )}
     </div>
   );
