@@ -1,0 +1,36 @@
+# Starting point for `fly deploy` -- see "Deploying to the cloud" in
+# README.md. Builds straight from the Dockerfile already in this repo, so
+# there's nothing Fly-specific to maintain in two places.
+#
+# Not blindly authoritative: run `fly launch` first (before your first
+# `fly deploy`) and let it regenerate/merge this if it wants to -- Fly's
+# own tooling is the source of truth for the current config schema, this
+# file was hand-written to match it as of when this app was set up.
+app = "cook-for-a-crowd"                 # change to something unique -- Fly app names are global
+primary_region = "iad"                   # change to whichever Fly region is closest to you
+
+[build]
+
+[env]
+  PORT = "3000"
+  HOSTNAME = "0.0.0.0"
+
+# Real persistent storage -- attached to this one machine's disk, which
+# is exactly what a single-instance app with a local SQLite file needs.
+# `fly volumes create cook_for_a_crowd_data --size 1` before your first
+# deploy (1 GB is enormous headroom for this app's data).
+[[mounts]]
+  source = "cook_for_a_crowd_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"    # scales to zero when idle -- cheaper for
+  auto_start_machines = true     # a personal tool that isn't used all day;
+  min_machines_running = 0       # costs a few seconds' cold start on the next visit
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

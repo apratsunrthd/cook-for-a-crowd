@@ -108,7 +108,10 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000). The SQLite database is
 created automatically at `data/cook-for-a-crowd.sqlite` on first run — no
 separate database setup needed. This is a single-user, run-it-yourself app;
-there's no auth and no multi-tenant support, by design (see `CLAUDE.md`).
+there's no auth and no multi-tenant support, by design (see `CLAUDE.md`) —
+this matters a lot more if you ever put it somewhere besides your own
+machine, see [Deploying to the cloud](#deploying-to-the-cloud-optional)
+below before you do.
 
 ### Running it for real use
 
@@ -129,6 +132,127 @@ This app isn't deployed anywhere — it's meant to run on your own machine
   nothing app-specific here. The Windows/Linux Docker launchers already do
   this for you (the container's `restart: unless-stopped` policy brings it
   back after a reboot or Docker restart on its own).
+
+## Deploying to the cloud (optional)
+
+### ⚠️ Read this before you put this anywhere but your own machine
+
+**This app has no login.** No username, no password, no accounts, nothing —
+by design, for a tool meant to run on your own computer where "who can open
+this" is already answered by "whoever can sit down at your computer." If you
+deploy it somewhere with a public URL and share that URL (or someone finds
+it), **whoever has the link gets the exact same full control you have** —
+every event, every recipe, deleting anything, editing anything. There's no
+read-only mode, no per-user permissions, nothing held back. If you've added
+an `ANTHROPIC_API_KEY`, they can also trigger AI generation calls billed to
+your account.
+
+If you're only going to reach it from your own devices, the safest option is
+to not expose it publicly at all — connect over a VPN, [Tailscale](https://tailscale.com/)
+or similar, or an SSH tunnel (`ssh -L 3000:localhost:3000 you@your-server`),
+and never open the port to the wider internet in the first place. If you do
+want a real public URL (e.g. to reach it from your phone without a VPN
+app), put it behind the username/password proxy described below — treat
+that as the minimum, not as making it fully safe to advertise widely, since
+anyone who guesses or is given that one shared password still gets full
+control, same as anyone on your own machine would.
+
+### Optional: put it behind a username and password
+
+Both deployment options below can run an included [Caddy](https://caddyserver.com/)
+reverse proxy (`Caddyfile`, wired up in `docker-compose.yml` as an opt-in
+`proxy` profile) that adds HTTP Basic Auth and automatic HTTPS in front of
+the app. To set it up:
+
+1. Generate a password hash: `./deploy/generate-basic-auth-password.sh yourpassword`
+   (uses Docker, so it works the same regardless of what's on your host).
+2. Add the three lines it prints, plus a `DOMAIN`, to `.env.local`:
+   ```
+   DOMAIN=cookforacrowd.example.com
+   BASIC_AUTH_USER=yourusername
+   BASIC_AUTH_HASH=$$2a$$...                # exactly as the script prints it
+   ```
+   `DOMAIN` needs to be a real domain pointed at your server's IP — Caddy
+   uses it to automatically get a Let's Encrypt certificate. Without a
+   domain of your own, stick to the VPN/SSH-tunnel approach above instead.
+3. Start (or restart) with the proxy included: `docker compose --profile proxy up -d --build --wait`.
+
+### Option 1: Fly.io (recommended — simplest with real persistent storage)
+
+Most "serverless container" platforms (see below for why they're not a
+great fit here) don't give you a real local disk, which this app's SQLite
+file needs. [Fly.io](https://fly.io/) does, cheaply, via
+[Volumes](https://fly.io/docs/volumes/overview/):
+
+```bash
+# Install flyctl if you don't have it: https://fly.io/docs/flyctl/install/
+fly auth login
+fly launch --no-deploy      # detects the Dockerfile; let it adjust fly.toml if it wants to
+fly volumes create cook_for_a_crowd_data --size 1
+fly secrets set ANTHROPIC_API_KEY=sk-ant-...   # optional, for AI features
+fly deploy
+```
+
+`fly.toml` in this repo is a starting point already wired up for the
+volume and for scaling to zero when idle (cheaper for a personal tool that
+isn't used all day, at the cost of a few seconds' cold start on the next
+visit). Fly's own edge network already handles HTTPS for you (`force_https`
+in `fly.toml`), so unlike the VM path you don't need Caddy for that part —
+just Basic Auth. The included `docker-compose` `proxy` profile is
+Compose-specific and doesn't apply directly on Fly; if you want the same
+one-command Basic Auth setup, Option 2 (a VM) keeps everything in the one
+docker-compose file. Adding Basic Auth on Fly itself is possible (e.g. a
+small second Fly app running Caddy on Fly's private network in front of
+this one) but needs more manual wiring than this README covers — reach for
+the VM path if that one-command setup matters more to you than Fly's
+scale-to-zero pricing.
+
+### Option 2: A VM on GCP, AWS, or any VPS
+
+Since the app is already Dockerized, any VM with Docker works identically
+to your own machine — `deploy/cloud-vm-setup.sh` installs Docker, clones
+this repo, and starts it, safely defaulting to **not** publicly exposed
+(the app binds to the VM's own localhost only until you set up the Basic
+Auth proxy above and re-run with `--profile proxy`).
+
+**GCP (Compute Engine):**
+```bash
+gcloud compute instances create cook-for-a-crowd \
+  --image-family=ubuntu-2404-lts-amd64 --image-project=ubuntu-os-cloud \
+  --machine-type=e2-small --boot-disk-size=20GB \
+  --metadata-from-file=startup-script=deploy/cloud-vm-setup.sh \
+  --tags=cook-for-a-crowd
+
+# Only after you've set up the Basic Auth proxy (above) -- this opens the
+# instance to the public internet on 80/443:
+gcloud compute firewall-rules create cook-for-a-crowd-web \
+  --allow=tcp:80,tcp:443 --target-tags=cook-for-a-crowd
+```
+
+**AWS (EC2):** the console is more reliable here than a copy-paste CLI
+command, since the right AMI ID is region-specific and changes over time.
+Launch an instance → Ubuntu 24.04 LTS → paste `deploy/cloud-vm-setup.sh`
+into the "User data" field under Advanced details → in the security group,
+only open port 22 (SSH, for yourself) until the Basic Auth proxy is set
+up, then add 80 and 443.
+
+Either way: SSH in, add your `ANTHROPIC_API_KEY` and (if you want it
+public) the Basic Auth settings to `/opt/cook-for-a-crowd/.env.local`, then
+`cd /opt/cook-for-a-crowd && docker compose --profile proxy up -d --build --wait`.
+
+### Why not Cloud Run, App Runner, or other "serverless" container platforms?
+
+They're not a good fit for *this* app specifically: their whole model is
+disposable, ephemeral containers with no local disk that persists between
+requests (or between scale-to-zero cycles) unless you separately wire up
+external storage (a mounted network filesystem, a managed Postgres
+instead of SQLite, etc.) — real work this app isn't built for. Deploy this
+app to one of them as-is and you'd very likely lose all your data the
+first time it scales down, exactly the kind of silent data loss this
+project has already run into once during development. A VM or Fly.io, both
+with a real attached disk, avoid the problem entirely by being closer to
+"your own machine, just hosted somewhere else" — which is really all this
+app has ever assumed it's running on.
 
 ## Testing
 

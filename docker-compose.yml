@@ -2,7 +2,13 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      # Bound to localhost only, not 0.0.0.0 -- on a shared machine or a
+      # cloud VM, this keeps the app reachable only from that same
+      # machine (or through the optional Caddy proxy below, which is the
+      # only thing that binds to every interface). Doesn't affect the
+      # normal single-machine case: localhost:3000 from the same machine
+      # is exactly what "127.0.0.1:3000" already means.
+      - "127.0.0.1:3000:3000"
     volumes:
       # Same data/ directory the native (non-Docker) launcher uses, so
       # switching between the two never looks like a fresh, empty app --
@@ -21,3 +27,29 @@ services:
       timeout: 3s
       retries: 30
       start_period: 3s
+
+  # Optional -- only starts with `docker compose --profile proxy up`.
+  # Puts the app behind a username/password and real HTTPS. See
+  # "Deploying to the cloud" in README.md: this app has no login of its
+  # own, so running this (or an equivalent) is not optional if you're
+  # putting it somewhere reachable from outside your own machine.
+  caddy:
+    image: caddy:2
+    profiles: ["proxy"]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    env_file:
+      - .env.local
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

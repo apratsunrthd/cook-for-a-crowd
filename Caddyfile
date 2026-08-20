@@ -1,0 +1,16 @@
+# Optional reverse proxy -- only used when you run
+# `docker compose --profile proxy up`. Puts the app behind a
+# username/password and real HTTPS (Caddy provisions a Let's Encrypt
+# certificate automatically once DOMAIN points at this machine).
+#
+# This app has no login of its own -- see "Deploying to the cloud" in
+# README.md before putting this anywhere reachable from outside your own
+# machine. This Caddyfile is the minimum recommended protection, not a
+# guarantee; anyone who has the username/password still gets full control
+# of every event and recipe, same as anyone on your own machine would.
+{$DOMAIN} {
+	basic_auth {
+		{$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+	}
+	reverse_proxy app:3000
+}
