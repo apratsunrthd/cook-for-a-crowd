@@ -76,10 +76,27 @@ describe("parseIngredientLine", () => {
     expect(result.unit).toBe("cup");
   });
 
-  it("parses can/package style units", () => {
+  it("parses can/package style units, recognizing the count unit despite the per-can size annotation", () => {
     const result = parseIngredientLine("2 (15 oz) cans black beans, drained and rinsed");
     expect(result.quantity).toBe(2);
+    expect(result.unit).toBe("can");
     expect(result.description.toLowerCase()).toContain("black beans");
+    // 2 cans x 15 oz -- lets the shopping list convert this to a #10-can count.
+    expect(result.gramsAtRawQuantity).toBeCloseTo(2 * 425.24, 0);
+  });
+
+  it("keeps the per-can size on sizeAnnotation, separate from description, so it can be re-emitted leading on rescale", () => {
+    const result = parseIngredientLine("10 (14.5 oz) cans green beans, drained");
+    expect(result.quantity).toBe(10);
+    expect(result.unit).toBe("can");
+    expect(result.description).toBe("green beans, drained");
+    expect(result.sizeAnnotation).toBe("14.5 oz");
+    expect(result.gramsAtRawQuantity).toBeCloseTo(10 * 411.07, 0);
+  });
+
+  it("leaves sizeAnnotation null for ordinary lines", () => {
+    const result = parseIngredientLine("2 cups all-purpose flour");
+    expect(result.sizeAnnotation).toBeNull();
   });
 
   it("does not throw on an empty string", () => {

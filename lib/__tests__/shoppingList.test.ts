@@ -19,6 +19,24 @@ describe("aggregateIngredients", () => {
     expect(onion?.sources).toEqual(["Chili", "Salsa"]);
   });
 
+  it("sums gram weights across merged items", () => {
+    const items = aggregateIngredients([
+      { recipeName: "Chili", ingredients: [scaled("2 cups flour")] },
+      { recipeName: "Gravy", ingredients: [scaled("1 cup flour")] },
+    ]);
+    const flour = items.find((i) => i.description.includes("flour"));
+    expect(flour?.grams).toBeCloseTo(360, 1); // (2+1) cups * 120 g/cup
+  });
+
+  it("leaves grams null when neither contributor has a known weight", () => {
+    const items = aggregateIngredients([
+      { recipeName: "A", ingredients: [scaled("2 cloves garlic, minced")] },
+      { recipeName: "B", ingredients: [scaled("1 clove garlic, minced")] },
+    ]);
+    const garlic = items.find((i) => i.description.includes("garlic"));
+    expect(garlic?.grams).toBeNull();
+  });
+
   it("merges the same base ingredient even when the prep clause differs", () => {
     const items = aggregateIngredients([
       { recipeName: "Chili", ingredients: [scaled("1 onion, diced")] },
@@ -78,11 +96,18 @@ describe("formatShoppingListItem", () => {
     const items = aggregateIngredients([
       { recipeName: "A", ingredients: [scaled("2 cups flour")] },
     ]);
-    expect(formatShoppingListItem(items[0])).toBe("2 cups flour");
+    expect(formatShoppingListItem(items[0])).toBe("2 cups flour (240 g)");
   });
 
   it("formats a needs-review item using its raw description", () => {
     const items = aggregateIngredients([{ recipeName: "A", ingredients: [scaled("Salt to taste")] }]);
     expect(formatShoppingListItem(items[0])).toBe("Salt to taste");
+  });
+
+  it("keeps a per-can size annotation in its leading position, and the weight it implies", () => {
+    const items = aggregateIngredients([
+      { recipeName: "Green Beans", ingredients: [scaled("10 (14.5 oz) cans green beans, drained")] },
+    ]);
+    expect(formatShoppingListItem(items[0])).toBe("10 (14.5 oz) cans green beans, drained (4.11 kg)");
   });
 });

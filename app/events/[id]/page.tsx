@@ -1,47 +1,41 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddRecipeToEvent } from "@/components/AddRecipeToEvent";
+import { CookPlan } from "@/components/CookPlan";
 import { DeleteEventButton } from "@/components/DeleteEventButton";
-import { EventRecipeCard } from "@/components/EventRecipeCard";
+import { DrinksCard } from "@/components/DrinksCard";
+import { Menu } from "@/components/Menu";
+import { PurchasedItemsCard } from "@/components/PurchasedItemsCard";
+import { RecipeVariantsCard } from "@/components/RecipeVariantsCard";
 import { ShoppingList } from "@/components/ShoppingList";
+import { SuppliesCard } from "@/components/SuppliesCard";
 import { getDb } from "@/lib/db";
+import { getEventPlan } from "@/lib/eventPlan";
+import { listDrinksForEvent } from "@/lib/repo/drinks";
 import { listEventRecipes } from "@/lib/repo/eventRecipes";
-import { getEvent } from "@/lib/repo/events";
+import { listPurchasedItemsForEvent } from "@/lib/repo/purchasedItems";
 import { listRecipes } from "@/lib/repo/recipes";
-import { InvalidServingsError, effectiveHeadcount, scaleRecipe } from "@/lib/scale";
-import { aggregateIngredients, type RecipeIngredients } from "@/lib/shoppingList";
-import type { ScaledIngredient } from "@/lib/types";
+import { listSuppliesForEvent } from "@/lib/repo/supplies";
+import { COURSE_LABELS, COURSE_ORDER } from "@/lib/types";
 
 export default async function EventDetailPage({ params }: PageProps<"/events/[id]">) {
   const { id } = await params;
   const db = getDb();
-  const event = getEvent(db, Number(id));
-  if (!event) notFound();
+  const plan = getEventPlan(db, Number(id));
+  if (!plan) notFound();
+  const { event, headcount, dishes, shoppingList } = plan;
 
-  const headcount = effectiveHeadcount(event);
   const attached = listEventRecipes(db, event.id);
   const allRecipes = listRecipes(db);
   const attachedIds = new Set(attached.map((a) => a.recipe.id));
   const availableRecipes = allRecipes.filter((r) => !attachedIds.has(r.id));
-
-  const scaledByRecipe = attached.map(({ eventRecipe, recipe }) => {
-    const target = eventRecipe.headcountOverride ?? headcount;
-    try {
-      return { recipe, eventRecipe, ingredients: scaleRecipe(recipe, target), error: null as string | null };
-    } catch (err) {
-      const message = err instanceof InvalidServingsError ? err.message : "Couldn't scale this recipe.";
-      return { recipe, eventRecipe, ingredients: null, error: message };
-    }
-  });
-
-  const shoppingListInputs: RecipeIngredients[] = scaledByRecipe
-    .filter((r): r is typeof r & { ingredients: ScaledIngredient[] } => r.ingredients !== null)
-    .map((r) => ({ recipeName: r.recipe.name, ingredients: r.ingredients }));
-  const shoppingList = aggregateIngredients(shoppingListInputs);
+  const drinks = listDrinksForEvent(db, event.id);
+  const supplies = listSuppliesForEvent(db, event.id);
+  const purchasedItems = listPurchasedItemsForEvent(db, event.id);
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between print:hidden">
+      <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{event.name}</h1>
           <p className="text-sm text-black/60 dark:text-white/60">
@@ -56,38 +50,82 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
           <DeleteEventButton eventId={event.id} />
         </div>
       </div>
-      <h1 className="hidden print:block text-2xl font-semibold">
-        {event.eventDate ? `${event.name} -- ${event.eventDate}` : event.name}
-      </h1>
 
-      <section className="space-y-4 print:hidden">
+      <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Recipes</h2>
+          <h2 className="text-lg font-semibold">Meal plan</h2>
         </div>
-        <AddRecipeToEvent eventId={event.id} availableRecipes={availableRecipes} />
-        {scaledByRecipe.length === 0 ? (
-          <p className="text-sm text-black/60 dark:text-white/60">No recipes added yet.</p>
+        <p className="text-sm text-black/60 dark:text-white/60">
+          Target headcount: <span className="font-medium text-black dark:text-white">{headcount} people</span>.
+          Each dish below rounds up to whole pans, so an individual dish may end up covering a few more people
+          than the target -- that&apos;s expected, it just means nobody goes hungry.
+        </p>
+        <AddRecipeToEvent eventId={event.id} defaultHeadcount={headcount} availableRecipes={availableRecipes} />
+        {dishes.length === 0 ? (
+          <p className="text-sm text-black/60 dark:text-white/60">No dishes added yet.</p>
         ) : (
-          <div className="space-y-3">
-            {scaledByRecipe.map(({ recipe, eventRecipe, ingredients, error }) => (
-              <EventRecipeCard
-                key={recipe.id}
-                eventId={event.id}
-                recipeId={recipe.id}
-                recipeName={recipe.name}
-                defaultHeadcount={headcount}
-                headcountOverride={eventRecipe.headcountOverride}
-                notes={eventRecipe.notes}
-                scaledIngredients={ingredients}
-                scalingError={error}
-              />
-            ))}
-          </div>
+          COURSE_ORDER.map((course) => {
+            const dishesForCourse = dishes.filter((d) => d.course === course);
+            if (dishesForCourse.length === 0) return null;
+            return (
+              <div key={course} className="space-y-3">
+                <h3 className="text-sm font-medium uppercase tracking-wide text-black/50 dark:text-white/50">
+                  {COURSE_LABELS[course]}
+                </h3>
+                {dishesForCourse.map((dish) => (
+                  <RecipeVariantsCard
+                    key={dish.recipe.id}
+                    eventId={event.id}
+                    recipeId={dish.recipe.id}
+                    recipeName={dish.recipe.name}
+                    recipeServings={dish.recipe.servings}
+                    recipeIngredients={dish.recipe.ingredients}
+                    recipePanSize={dish.recipe.panSize}
+                    variants={dish.variants}
+                  />
+                ))}
+              </div>
+            );
+          })
         )}
       </section>
 
-      <section className="print:mt-0">
-        <ShoppingList items={shoppingList} eventName={event.name} />
+      <section>
+        <PurchasedItemsCard eventId={event.id} items={purchasedItems} />
+      </section>
+
+      <section>
+        <DrinksCard eventId={event.id} defaultHeadcount={headcount} drinks={drinks} />
+      </section>
+
+      <section>
+        <SuppliesCard eventId={event.id} defaultHeadcount={headcount} supplies={supplies} />
+      </section>
+
+      <section className="space-y-2">
+        <Menu eventName={event.name} eventDate={event.eventDate} dishes={dishes} purchasedItems={purchasedItems} drinks={drinks} />
+        <Link
+          href={`/events/${event.id}/print/menu`}
+          className="text-sm underline text-black/70 dark:text-white/70"
+        >
+          Open printable view &rarr;
+        </Link>
+      </section>
+
+      {dishes.length > 0 && (
+        <section className="space-y-2">
+          <CookPlan dishes={dishes} />
+          <Link
+            href={`/events/${event.id}/print/cook-plan`}
+            className="text-sm underline text-black/70 dark:text-white/70"
+          >
+            Open printable view &rarr;
+          </Link>
+        </section>
+      )}
+
+      <section className="space-y-2">
+        <ShoppingList items={shoppingList} eventName={event.name} eventId={event.id} showPrintLink />
       </section>
     </div>
   );

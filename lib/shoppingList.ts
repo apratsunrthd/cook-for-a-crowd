@@ -1,6 +1,12 @@
+import { formatGrams } from "./ingredientWeight";
 import { formatQuantity } from "./quantityFormat";
 import { pluralizeUnit } from "./unitFormat";
 import type { ScaledIngredient, ShoppingListItem } from "./types";
+
+function addGrams(a: number | null, b: number | null): number | null {
+  if (a === null && b === null) return null;
+  return (a ?? 0) + (b ?? 0);
+}
 
 export interface RecipeIngredients {
   recipeName: string;
@@ -41,8 +47,10 @@ export function aggregateIngredients(recipes: RecipeIngredients[]): ShoppingList
           quantity: null,
           unit: ingredient.unit,
           description: ingredient.description || ingredient.raw,
+          sizeAnnotation: ingredient.sizeAnnotation,
           needsReview: true,
           sources: [recipeName],
+          grams: ingredient.grams,
         });
         continue;
       }
@@ -56,6 +64,7 @@ export function aggregateIngredients(recipes: RecipeIngredients[]): ShoppingList
       const existing = merged.get(key);
       if (existing && existing.quantity !== null) {
         existing.quantity += value;
+        existing.grams = addGrams(existing.grams, ingredient.grams);
         if (!existing.sources.includes(recipeName)) {
           existing.sources.push(recipeName);
         }
@@ -65,8 +74,10 @@ export function aggregateIngredients(recipes: RecipeIngredients[]): ShoppingList
           quantity: value,
           unit: ingredient.unit,
           description: ingredient.description,
+          sizeAnnotation: ingredient.sizeAnnotation,
           needsReview: false,
           sources: [recipeName],
+          grams: ingredient.grams,
         });
       }
     }
@@ -80,8 +91,10 @@ export function formatShoppingListItem(item: ShoppingListItem): string {
     return item.description;
   }
   const unit = pluralizeUnit(item.unit, item.quantity);
-  const parts = [formatQuantity(item.quantity), unit, item.description].filter(
+  const sizeAnnotation = item.sizeAnnotation ? `(${item.sizeAnnotation})` : null;
+  const parts = [formatQuantity(item.quantity), sizeAnnotation, unit, item.description].filter(
     (part): part is string => !!part && part.length > 0,
   );
-  return parts.join(" ");
+  const line = parts.join(" ");
+  return item.grams !== null ? `${line} (${formatGrams(item.grams)})` : line;
 }

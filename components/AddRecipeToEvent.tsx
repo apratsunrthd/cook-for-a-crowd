@@ -4,16 +4,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { attachRecipeAction } from "@/lib/actions/events";
+import type { Course } from "@/lib/types";
 
 export function AddRecipeToEvent({
   eventId,
+  defaultHeadcount,
   availableRecipes,
 }: {
   eventId: number;
+  defaultHeadcount: number;
   availableRecipes: { id: number; name: string }[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string>(availableRecipes[0]?.id.toString() ?? "");
+  const [course, setCourse] = useState<Course>("main");
   const [adding, setAdding] = useState(false);
 
   return (
@@ -24,7 +28,7 @@ export function AddRecipeToEvent({
             e.preventDefault();
             if (!selected) return;
             setAdding(true);
-            await attachRecipeAction(eventId, Number(selected));
+            await attachRecipeAction(eventId, Number(selected), course, defaultHeadcount);
             setAdding(false);
             router.refresh();
           }}
@@ -41,6 +45,16 @@ export function AddRecipeToEvent({
                 {recipe.name}
               </option>
             ))}
+          </select>
+          <select
+            value={course}
+            onChange={(e) => setCourse(e.target.value as Course)}
+            aria-label="Course"
+            className="rounded-md border border-black/20 dark:border-white/20 bg-transparent px-3 py-2 text-sm"
+          >
+            <option value="main">Main</option>
+            <option value="side">Side</option>
+            <option value="dessert">Dessert</option>
           </select>
           <button
             type="submit"

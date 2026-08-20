@@ -1,5 +1,7 @@
 import * as cheerio from "cheerio";
 import { parseIngredientLines } from "./ingredientParser";
+import { guessPanSize } from "./panSizeExtract";
+import type { PanSize } from "./panSize";
 import type { ParsedIngredient } from "./types";
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -10,12 +12,13 @@ const USER_AGENT =
 
 export interface ImportedRecipeDraft {
   name: string;
-  sourceUrl: string;
+  sourceUrl: string | null;
   servings: number | null;
   rawYieldText: string | null;
   ingredients: ParsedIngredient[];
   instructions: string | null;
   imageUrl: string | null;
+  panSize: PanSize | null;
 }
 
 export class RecipeImportError extends Error {
@@ -113,7 +116,7 @@ function extractInstructions(node: Record<string, unknown>): string | null {
 }
 
 /** Parses a recipe from already-fetched HTML. Exposed separately from `importRecipeFromUrl` so tests can run offline against saved fixtures. */
-export function parseRecipeFromHtml(html: string, sourceUrl: string): ImportedRecipeDraft {
+export function parseRecipeFromHtml(html: string, sourceUrl: string | null): ImportedRecipeDraft {
   const recipeNode = findRecipeNode(html);
   if (!recipeNode) {
     throw new RecipeImportError(
@@ -124,15 +127,18 @@ export function parseRecipeFromHtml(html: string, sourceUrl: string): ImportedRe
 
   const { servings, rawText } = parseServings(recipeNode["recipeYield"]);
   const name = typeof recipeNode["name"] === "string" ? recipeNode["name"] : "";
+  const ingredientLines = extractIngredientLines(recipeNode);
+  const instructions = extractInstructions(recipeNode);
 
   return {
     name,
     sourceUrl,
     servings,
     rawYieldText: rawText,
-    ingredients: parseIngredientLines(extractIngredientLines(recipeNode)),
-    instructions: extractInstructions(recipeNode),
+    ingredients: parseIngredientLines(ingredientLines),
+    instructions,
     imageUrl: firstString(recipeNode["image"]),
+    panSize: guessPanSize({ name, instructions, ingredientLines }),
   };
 }
 

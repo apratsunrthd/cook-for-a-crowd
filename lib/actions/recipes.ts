@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { generateRecipeWithAI, RecipeGenerationError, type RecipeRevisionContext } from "../aiRecipe";
 import { getDb } from "../db";
+import { fillMissingIngredientDetails } from "../ingredientWeightAI";
+import { fillPanSizeGap } from "../panSizeAI";
 import { detachRecipe as detachRecipeFromEvent } from "../repo/eventRecipes";
 import {
   DuplicateSourceUrlError,
@@ -10,19 +13,108 @@ import {
   deleteRecipe,
   updateRecipe,
 } from "../repo/recipes";
-import { RecipeImportError, importRecipeFromUrl, type ImportedRecipeDraft } from "../recipeImport";
+import {
+  RecipeImportError,
+  importRecipeFromUrl,
+  parseRecipeFromHtml,
+  type ImportedRecipeDraft,
+} from "../recipeImport";
+import { parseRecipeFromPlainText } from "../recipeTextParse";
+import type { Course } from "../types";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
-export async function importRecipeDraftAction(url: string): Promise<ActionResult<ImportedRecipeDraft>> {
+const BARE_URL_PATTERN = /^https?:\/\/\S+$/i;
+const HTML_PATTERN = /<\/?[a-z][\s\S]*>/i;
+
+/**
+ * One box, three shapes of input: a bare URL (fetched server-side), pasted
+ * HTML source (parsed with the same structured-data logic as URL import,
+ * for when a URL fetch gets blocked but the user can reach the page in
+ * their own browser), or pasted plain recipe text (heuristic Ingredients/
+ * Instructions split). Auto-detects which one it got.
+ */
+export async function importRecipeDraftAction(pasted: string): Promise<ActionResult<ImportedRecipeDraft>> {
+  const trimmed = pasted.trim();
+  if (!trimmed) {
+    return { ok: false, error: "Paste a recipe URL, page HTML, or recipe text first." };
+  }
+
+  if (BARE_URL_PATTERN.test(trimmed) && !trimmed.includes("\n")) {
+    try {
+      const draft = await importRecipeFromUrl(trimmed);
+      return { ok: true, data: await fillPanSizeGap(draft) };
+    } catch (err) {
+      if (err instanceof RecipeImportError) {
+        return {
+          ok: false,
+          error: `${err.message} If the site blocks automated fetches, paste the page's HTML (view-source) or its visible text instead.`,
+        };
+      }
+      return { ok: false, error: "Something went wrong importing that recipe." };
+    }
+  }
+
   try {
-    const draft = await importRecipeFromUrl(url);
-    return { ok: true, data: draft };
+    const draft = HTML_PATTERN.test(trimmed)
+      ? parseRecipeFromHtml(trimmed, null)
+      : parseRecipeFromPlainText(trimmed);
+    return { ok: true, data: await fillPanSizeGap(draft) };
   } catch (err) {
     if (err instanceof RecipeImportError) {
       return { ok: false, error: err.message };
     }
-    return { ok: false, error: "Something went wrong importing that recipe." };
+    return { ok: false, error: "Couldn't find a recipe in that." };
+  }
+}
+
+export async function generateRecipeDraftAction(
+  prompt: string,
+  course: Course,
+  targetHeadcount?: number | null,
+): Promise<ActionResult<ImportedRecipeDraft>> {
+  if (!prompt.trim()) {
+    return { ok: false, error: "Describe what recipe you want first." };
+  }
+  try {
+    const draft = await generateRecipeWithAI(prompt, course, targetHeadcount);
+    return { ok: true, data: draft };
+  } catch (err) {
+    if (err instanceof RecipeGenerationError) {
+      return { ok: false, error: err.message };
+    }
+    return { ok: false, error: "Something went wrong generating that recipe." };
+  }
+}
+
+/** A "try again" is just a fresh call with the same prompt -- sampling variance alone gives a different result. */
+export async function regenerateRecipeDraftAction(
+  prompt: string,
+  course: Course,
+  targetHeadcount?: number | null,
+): Promise<ActionResult<ImportedRecipeDraft>> {
+  return generateRecipeDraftAction(prompt, course, targetHeadcount);
+}
+
+/** Revises an AI-generated draft the user doesn't like, incorporating their feedback, instead of a blind reroll. */
+export async function reviseRecipeDraftAction(
+  prompt: string,
+  currentDraft: Omit<RecipeRevisionContext, "feedback">,
+  feedback: string,
+  course: Course,
+  targetHeadcount?: number | null,
+): Promise<ActionResult<ImportedRecipeDraft>> {
+  if (!feedback.trim()) {
+    return { ok: false, error: "Describe what you'd like changed first." };
+  }
+  try {
+    const draft = await generateRecipeWithAI(prompt, course, targetHeadcount, { ...currentDraft, feedback });
+    return { ok: true, data: draft };
+  } catch (err) {
+    if (err instanceof RecipeGenerationError) {
+      return { ok: false, error: err.message };
+    }
+    return { ok: false, error: "Something went wrong revising that recipe." };
   }
 }
 
@@ -32,7 +124,11 @@ export async function saveRecipeAction(
 ): Promise<ActionResult<{ id: number }>> {
   const db = getDb();
   try {
-    const recipe = id === null ? createRecipe(db, input) : updateRecipe(db, id, input);
+    const ingredients = await fillMissingIngredientDetails(input.ingredients);
+    const recipe =
+      id === null
+        ? createRecipe(db, { ...input, ingredients })
+        : updateRecipe(db, id, { ...input, ingredients });
     revalidatePath("/recipes");
     revalidatePath(`/recipes/${recipe.id}`);
     return { ok: true, data: { id: recipe.id } };

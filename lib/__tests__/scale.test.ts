@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import { parseIngredientLine } from "../ingredientParser";
 import {
   InvalidServingsError,
+  batchesNeeded,
   effectiveHeadcount,
   formatScaledIngredient,
+  formatScaledIngredientLine,
+  roundUpToWholeBatches,
   scaleFactor,
   scaleIngredient,
   scaleRecipe,
@@ -29,6 +32,41 @@ describe("effectiveHeadcount", () => {
 
   it("handles a zero buffer", () => {
     expect(effectiveHeadcount({ rsvpCount: 25, bufferMode: "flat", bufferValue: 0 })).toBe(25);
+  });
+});
+
+describe("batchesNeeded", () => {
+  it("rounds up rather than leaving people short", () => {
+    // 57 people, 6 per pan -> 9 pans only covers 54; must be 10.
+    expect(batchesNeeded(57, 6)).toBe(10);
+  });
+
+  it("returns exactly the ratio when it divides evenly", () => {
+    expect(batchesNeeded(48, 8)).toBe(6);
+  });
+
+  it("always needs at least 1 batch", () => {
+    expect(batchesNeeded(3, 8)).toBe(1);
+  });
+
+  it("falls back to 1 when servings-per-batch is null or invalid", () => {
+    expect(batchesNeeded(57, null)).toBe(1);
+    expect(batchesNeeded(57, 0)).toBe(1);
+  });
+});
+
+describe("roundUpToWholeBatches", () => {
+  it("returns the headcount actually covered by whole batches", () => {
+    expect(roundUpToWholeBatches(57, 6)).toBe(60); // 10 batches x 6
+  });
+
+  it("matches the target exactly when it divides evenly", () => {
+    expect(roundUpToWholeBatches(48, 8)).toBe(48);
+  });
+
+  it("returns the target unchanged when servings-per-batch is null or invalid", () => {
+    expect(roundUpToWholeBatches(57, null)).toBe(57);
+    expect(roundUpToWholeBatches(57, 0)).toBe(57);
   });
 });
 
@@ -73,6 +111,39 @@ describe("scaleIngredient", () => {
     expect(scaled.quantity).toBeNull();
     expect(scaled.needsReview).toBe(true);
   });
+
+  it("rounds a bare-count ingredient up to a whole number -- no such thing as 5.76 chicken breasts", () => {
+    const ingredient = parseIngredientLine("4 skinless, boneless chicken breast halves");
+    const scaled = scaleIngredient(ingredient, 1.44);
+    expect(scaled.quantity).toBe(6);
+  });
+
+  it("scales cans/packages/cloves fractionally -- you CAN use 1 1/2 cans of soup", () => {
+    expect(scaleIngredient(parseIngredientLine("2 cans green beans"), 1.1).quantity).toBeCloseTo(2.2);
+    expect(scaleIngredient(parseIngredientLine("1 clove garlic, minced"), 1.5).quantity).toBeCloseTo(1.5);
+  });
+
+  it("scales a bare-count container word (e.g. a sleeve of crackers) fractionally, not as a whole item", () => {
+    const ingredient = parseIngredientLine("1 sleeve buttery round crackers, crushed");
+    expect(ingredient.roundsToWhole).toBe(false);
+    expect(scaleIngredient(ingredient, 1.5).quantity).toBeCloseTo(1.5);
+  });
+
+  it("still scales continuous units (cups, tablespoons) fractionally", () => {
+    expect(scaleIngredient(parseIngredientLine("2 cups flour"), 1.44).quantity).toBeCloseTo(2.88);
+  });
+
+  it("scales the gram estimate off the rounded-up quantity, not the raw factor", () => {
+    const ingredient = {
+      ...parseIngredientLine("4 chicken breast halves"),
+      gramsAtRawQuantity: 700,
+    };
+    const scaled = scaleIngredient(ingredient, 1.44);
+    expect(scaled.quantity).toBe(6);
+    // 4 breasts -> 700g (175g/breast); rounded up to 6 breasts -> 1050g,
+    // not 700 * 1.44 = 1008g (which would under-represent 6 whole breasts).
+    expect(scaled.grams).toBeCloseTo(1050, 0);
+  });
 });
 
 describe("scaleRecipe", () => {
@@ -86,6 +157,7 @@ describe("scaleRecipe", () => {
       ingredients: [parseIngredientLine("2 cups flour"), parseIngredientLine("1 tsp salt")],
       instructions: null,
       imageUrl: null,
+      panSize: null,
       createdAt: "",
       updatedAt: "",
       ...overrides,
@@ -109,21 +181,65 @@ describe("scaleRecipe", () => {
 describe("formatScaledIngredient", () => {
   it("formats a plain scaled ingredient, pluralizing the unit", () => {
     const scaled = scaleIngredient(parseIngredientLine("2 cups flour"), 1.5);
-    expect(formatScaledIngredient(scaled)).toBe("3 cups flour");
+    expect(formatScaledIngredient(scaled)).toBe("3 cups flour (360 g)");
   });
 
   it("formats a scaled range, pluralizing the unit", () => {
     const scaled = scaleIngredient(parseIngredientLine("2-3 tablespoons olive oil"), 2);
-    expect(formatScaledIngredient(scaled)).toBe("4-6 tablespoons olive oil");
+    expect(formatScaledIngredient(scaled)).toBe("4-6 tablespoons olive oil (55 g)");
   });
 
   it("uses the singular unit when the scaled quantity is exactly 1", () => {
     const scaled = scaleIngredient(parseIngredientLine("2 cups flour"), 0.5);
-    expect(formatScaledIngredient(scaled)).toBe("1 cup flour");
+    expect(formatScaledIngredient(scaled)).toBe("1 cup flour (120 g)");
+  });
+
+  it("omits the gram suffix when no weight could be determined", () => {
+    const scaled = scaleIngredient(parseIngredientLine("3 large eggs"), 2);
+    expect(formatScaledIngredient(scaled)).not.toContain("(");
   });
 
   it("falls back to the raw line for needs-review ingredients", () => {
     const scaled = scaleIngredient(parseIngredientLine("Salt to taste"), 3);
     expect(formatScaledIngredient(scaled)).toBe("Salt to taste");
+  });
+});
+
+describe("formatScaledIngredientLine", () => {
+  it("never includes a gram suffix, even when a weight is known", () => {
+    const scaled = scaleIngredient(parseIngredientLine("2 cups flour"), 1.5);
+    expect(formatScaledIngredientLine(scaled)).toBe("3 cups flour");
+  });
+
+  it("stays re-parseable as a raw ingredient line", () => {
+    const scaled = scaleIngredient(parseIngredientLine("2-3 tablespoons olive oil"), 2);
+    expect(formatScaledIngredientLine(scaled)).toBe("4-6 tablespoons olive oil");
+  });
+
+  it("round-trips a per-can size annotation through repeated scale/reformat/reparse without drifting or losing the weight estimate", () => {
+    let ingredient = parseIngredientLine("10 (14.5 oz) cans green beans, drained");
+    expect(ingredient.unit).toBe("can");
+    expect(ingredient.gramsAtRawQuantity).not.toBeNull();
+
+    // Simulate what RecipeEditor actually does: scale, reformat to a plain
+    // line, then re-parse that line as if it were freshly typed/saved --
+    // twice, since the real bug only showed up on the *second* round trip.
+    for (let i = 0; i < 2; i++) {
+      const scaled = scaleIngredient(ingredient, 4 / 3);
+      const line = formatScaledIngredientLine(scaled);
+      // Stays in the leading "N (14.5 oz) cans ..." position, not trailing.
+      expect(line).toMatch(/^[\d\s/-]+\(14\.5 oz\)\s+cans?\b/);
+      ingredient = parseIngredientLine(line);
+      expect(ingredient.unit).toBe("can");
+    }
+
+    // Loose tolerance -- formatQuantity snaps to the nearest cooking
+    // fraction on every round trip through text, same as any other
+    // ingredient line. What this test actually guards is the unit and the
+    // weight estimate surviving repeated scale/reformat/reparse.
+    expect(ingredient.quantity).toBeCloseTo(10 * (4 / 3) ** 2, 0);
+    // Still computed from the real per-can size, not an AI guess that
+    // ignores how many cans are actually being bought.
+    expect(ingredient.gramsAtRawQuantity).toBeCloseTo(ingredient.quantity! * 411.07, 0);
   });
 });

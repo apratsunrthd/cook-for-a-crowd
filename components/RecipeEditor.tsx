@@ -1,11 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { attachRecipeAction } from "@/lib/actions/events";
+import { useEffect, useMemo, useState } from "react";
+import { IngredientsField } from "@/components/IngredientsField";
+import { PanRescaleField } from "@/components/PanRescaleField";
+import { PanSizeField } from "@/components/PanSizeField";
+import { attachRecipeAction, getEventHeadcountAction } from "@/lib/actions/events";
 import { saveRecipeAction } from "@/lib/actions/recipes";
 import { parseIngredientLines } from "@/lib/ingredientParser";
-import type { Recipe } from "@/lib/types";
+import { formatPanSize, vesselNoun, type PanSize } from "@/lib/panSize";
+import { formatScaledIngredientLine, scaleIngredients } from "@/lib/scale";
+import type { Course, Recipe } from "@/lib/types";
+
+function panSizeKey(size: PanSize | null): string {
+  return size ? formatPanSize(size) : "";
+}
 
 export interface RecipeDraft {
   name: string;
@@ -15,6 +24,7 @@ export interface RecipeDraft {
   ingredientLines: string[];
   instructions: string | null;
   imageUrl: string | null;
+  panSize: PanSize | null;
 }
 
 function recipeToDraft(recipe: Recipe): RecipeDraft {
@@ -26,17 +36,24 @@ function recipeToDraft(recipe: Recipe): RecipeDraft {
     ingredientLines: recipe.ingredients.map((i) => i.raw),
     instructions: recipe.instructions,
     imageUrl: recipe.imageUrl,
+    panSize: recipe.panSize,
   };
+}
+
+function initialPanSize(initialDraft: RecipeDraft | Recipe | undefined): PanSize | null {
+  return initialDraft && "panSize" in initialDraft ? initialDraft.panSize : null;
 }
 
 export function RecipeEditor({
   recipeId,
   initialDraft,
   attachToEventId,
+  initialCourse,
 }: {
   recipeId?: number;
   initialDraft?: RecipeDraft | Recipe;
   attachToEventId?: number;
+  initialCourse?: Course;
 }) {
   const router = useRouter();
   const draft = initialDraft && "ingredients" in initialDraft ? recipeToDraft(initialDraft) : initialDraft;
@@ -48,16 +65,82 @@ export function RecipeEditor({
   const [ingredientsText, setIngredientsText] = useState((draft?.ingredientLines ?? []).join("\n"));
   const [instructions, setInstructions] = useState(draft?.instructions ?? "");
   const [imageUrl] = useState(draft?.imageUrl ?? null);
+  const [panSize, setPanSize] = useState<PanSize | null>(initialPanSize(initialDraft));
+  // Bumped whenever panSize is overwritten from OUTSIDE PanSizeField (i.e.
+  // by PanRescaleField), forcing it to remount and re-seed its display from
+  // the new value instead of showing a stale preset.
+  const [panSizeVersion, setPanSizeVersion] = useState(0);
+  // Picking a vessel that doesn't match the recipe's current servings is
+  // exactly how a "20qt pot, 6 servings" inconsistency gets created --
+  // whenever a vessel choice would leave servings unexplained, ask instead
+  // of silently tagging it.
+  const [pendingVesselChange, setPendingVesselChange] = useState<PanSize | null>(null);
+  const [resizeTargetServings, setResizeTargetServings] = useState<number | "">("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [course, setCourse] = useState<Course>(initialCourse ?? "main");
+  const [eventHeadcount, setEventHeadcount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (attachToEventId === undefined) return;
+    getEventHeadcountAction(attachToEventId).then(setEventHeadcount);
+  }, [attachToEventId]);
 
   const parsedIngredients = useMemo(
     () => parseIngredientLines(ingredientsText.split("\n")),
     [ingredientsText],
   );
-  const needsReviewCount = parsedIngredients.filter((i) => i.needsReview).length;
 
   const requiresServings = attachToEventId !== undefined;
+
+  /**
+   * Only commits a vessel choice immediately when there's nothing it could
+   * contradict (no servings recorded yet, or it's an actual no-op). If the
+   * recipe already has real servings, a vessel change is ambiguous --
+   * "record what this recipe (as written) already uses" vs. "resize this
+   * recipe to fill a different vessel" -- and picking wrong silently
+   * produces exactly the bug this exists to prevent.
+   */
+  function handlePanSizeChange(newSize: PanSize | null) {
+    const servingsNumber = servings === "" ? null : Number(servings);
+    const changed = panSizeKey(newSize) !== panSizeKey(panSize);
+    if (newSize !== null && changed && servingsNumber !== null && servingsNumber > 0) {
+      setPendingVesselChange(newSize);
+      // Default to the event's actual target headcount when known -- the
+      // whole point of asking is to size for how many people you're really
+      // cooking for, not to guess at how full a vessel should be.
+      setResizeTargetServings(eventHeadcount ?? servingsNumber);
+      return;
+    }
+    setPanSize(newSize);
+    setPanSizeVersion((v) => v + 1);
+  }
+
+  function confirmServingsUnchanged() {
+    if (!pendingVesselChange) return;
+    setPanSize(pendingVesselChange);
+    setPanSizeVersion((v) => v + 1);
+    setPendingVesselChange(null);
+  }
+
+  function confirmResizeToVessel() {
+    if (!pendingVesselChange || resizeTargetServings === "" || Number(resizeTargetServings) <= 0) return;
+    const currentServings = servings === "" ? 0 : Number(servings);
+    const factor = currentServings > 0 ? Number(resizeTargetServings) / currentServings : 1;
+    const scaled = scaleIngredients(parsedIngredients, factor);
+    setIngredientsText(scaled.map(formatScaledIngredientLine).join("\n"));
+    setServings(Number(resizeTargetServings));
+    setPanSize(pendingVesselChange);
+    setPanSizeVersion((v) => v + 1);
+    setPendingVesselChange(null);
+  }
+
+  function cancelVesselChange() {
+    setPendingVesselChange(null);
+    // PanSizeField already updated its own display optimistically -- force
+    // it to remount and re-seed from the actual (unchanged) panSize.
+    setPanSizeVersion((v) => v + 1);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,6 +161,7 @@ export function RecipeEditor({
       ingredients: parsedIngredients,
       instructions: instructions || null,
       imageUrl,
+      panSize,
     });
 
     if (!result.ok) {
@@ -87,7 +171,7 @@ export function RecipeEditor({
     }
 
     if (attachToEventId !== undefined) {
-      await attachRecipeAction(attachToEventId, result.data.id);
+      await attachRecipeAction(attachToEventId, result.data.id, course, eventHeadcount ?? servingsNumber ?? 1);
       router.push(`/events/${attachToEventId}`);
     } else {
       router.push(`/recipes/${result.data.id}`);
@@ -119,6 +203,24 @@ export function RecipeEditor({
         />
       </div>
 
+      {attachToEventId !== undefined && (
+        <div>
+          <label className="block text-sm font-medium mb-1" htmlFor="course">
+            Course
+          </label>
+          <select
+            id="course"
+            value={course}
+            onChange={(e) => setCourse(e.target.value as Course)}
+            className="rounded-md border border-black/20 dark:border-white/20 bg-transparent px-3 py-2 text-sm"
+          >
+            <option value="main">Main</option>
+            <option value="side">Side</option>
+            <option value="dessert">Dessert</option>
+          </select>
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-medium mb-1" htmlFor="servings">
           Servings (how many people this feeds){requiresServings && " *"}
@@ -139,26 +241,67 @@ export function RecipeEditor({
         )}
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1" htmlFor="ingredients">
-          Ingredients (one per line)
-        </label>
-        <textarea
-          id="ingredients"
-          rows={Math.max(6, ingredientsText.split("\n").length + 1)}
-          value={ingredientsText}
-          onChange={(e) => setIngredientsText(e.target.value)}
-          className="w-full rounded-md border border-black/20 dark:border-white/20 bg-transparent px-3 py-2 font-mono text-sm"
-          placeholder={"2 cups flour\n1 tsp salt"}
-        />
-        {needsReviewCount > 0 && (
-          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-            {needsReviewCount} line{needsReviewCount === 1 ? "" : "s"} had no quantity found and
-            won&apos;t be scaled automatically -- shown as-is when the recipe is scaled.
+      <IngredientsField id="ingredients" value={ingredientsText} onChange={setIngredientsText} />
+
+      <PanSizeField key={panSizeVersion} value={panSize} onChange={handlePanSizeChange} />
+
+      {pendingVesselChange && (
+        <div className="rounded-md border border-amber-400/50 bg-amber-50 dark:bg-amber-900/20 p-3 space-y-2 text-sm">
+          <p>
+            Recording this as {formatPanSize(pendingVesselChange)}. This recipe currently has{" "}
+            {servings} servings -- does a {vesselNoun(pendingVesselChange)} that size actually make about{" "}
+            {servings} servings of this dish, or are you cooking for a different number of people?
           </p>
-        )}
-        <IngredientPreview lines={parsedIngredients} />
-      </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={confirmServingsUnchanged}
+              className="rounded-md border border-black/20 dark:border-white/20 px-2 py-1 font-medium"
+            >
+              Yes, {servings} is right for this {vesselNoun(pendingVesselChange)}
+            </button>
+            <span>or I&apos;m actually cooking for about</span>
+            <input
+              type="number"
+              min={1}
+              value={resizeTargetServings}
+              onChange={(e) => setResizeTargetServings(e.target.value === "" ? "" : Number(e.target.value))}
+              className="w-20 rounded-md border border-black/20 dark:border-white/20 bg-transparent px-2 py-1"
+              aria-label="How many people you're actually cooking for"
+            />
+            <button
+              type="button"
+              onClick={confirmResizeToVessel}
+              disabled={resizeTargetServings === ""}
+              className="rounded-md border border-black/20 dark:border-white/20 px-2 py-1 font-medium disabled:opacity-50"
+            >
+              people -- resize to match
+            </button>
+          </div>
+          <p className="text-xs text-black/50 dark:text-white/50">
+            {eventHeadcount !== null
+              ? `Pre-filled with this event's target headcount (${eventHeadcount}) -- adjust if this dish should cover a different number.`
+              : "The recipe scales exactly to whatever headcount you enter -- no need to fill the vessel to its maximum capacity."}
+          </p>
+          <button type="button" onClick={cancelVesselChange} className="text-xs underline">
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {panSize && (
+        <PanRescaleField
+          panSize={panSize}
+          servings={servings === "" ? null : Number(servings)}
+          ingredients={parsedIngredients}
+          onApply={({ panSize: newPanSize, servings: newServings, ingredientLines }) => {
+            setPanSize(newPanSize);
+            setPanSizeVersion((v) => v + 1);
+            if (newServings !== null) setServings(newServings);
+            setIngredientsText(ingredientLines.join("\n"));
+          }}
+        />
+      )}
 
       <div>
         <label className="block text-sm font-medium mb-1" htmlFor="instructions">
@@ -175,30 +318,30 @@ export function RecipeEditor({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
-      >
-        {saving ? "Saving…" : attachToEventId !== undefined ? "Save and add to event" : "Save recipe"}
-      </button>
+      <div className="flex gap-3">
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
+        >
+          {saving ? "Saving…" : attachToEventId !== undefined ? "Save and add to event" : "Save recipe"}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            router.push(
+              attachToEventId !== undefined
+                ? `/events/${attachToEventId}`
+                : recipeId !== undefined
+                  ? `/recipes/${recipeId}`
+                  : "/recipes",
+            )
+          }
+          className="rounded-md border border-black/20 dark:border-white/20 px-4 py-2 text-sm font-medium"
+        >
+          Cancel
+        </button>
+      </div>
     </form>
-  );
-}
-
-function IngredientPreview({ lines }: { lines: ReturnType<typeof parseIngredientLines> }) {
-  if (lines.length === 0) return null;
-  return (
-    <ul className="mt-2 space-y-0.5 text-xs text-black/60 dark:text-white/60">
-      {lines.map((line, idx) => (
-        <li key={idx} className={line.needsReview ? "text-amber-600 dark:text-amber-400" : undefined}>
-          {line.isGroupHeader
-            ? `— ${line.description} —`
-            : line.needsReview
-              ? `⚠ "${line.raw}" (no quantity found)`
-              : `✓ ${line.quantity}${line.quantity2 ? `-${line.quantity2}` : ""} ${line.unit ?? ""} ${line.description}`}
-        </li>
-      ))}
-    </ul>
   );
 }
