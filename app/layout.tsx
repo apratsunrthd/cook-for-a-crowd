@@ -31,6 +31,18 @@ export const metadata: Metadata = {
   description: "Plan meals, scale recipes to a headcount, and build a shopping list.",
 };
 
+// Every page here reads straight from the local SQLite file, with no
+// `fetch()` calls for Next's cache heuristics to key off of -- left to its
+// own defaults, Next.js silently prerenders a route like `/` (no obvious
+// per-request signal) as static HTML at build time and keeps serving that
+// snapshot until something else happens to invalidate it. Verified this
+// is a real, user-visible bug: a fresh production server showed "no
+// events yet" on the dashboard even with events already in the database,
+// until a Server Action on some other page incidentally revalidated it.
+// Forcing every route dynamic here, once, is more robust than remembering
+// a per-page `export const dynamic` on every current and future page.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -55,6 +67,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               className="text-sm text-black/70 dark:text-white/70 hover:underline"
             >
               Recipes
+            </Link>
+            <Link
+              href="/settings"
+              className="text-sm text-black/70 dark:text-white/70 hover:underline"
+            >
+              Settings
             </Link>
             <div className="ml-auto">
               <ThemeToggle />

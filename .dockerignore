@@ -1,0 +1,23 @@
+# Kept out of the build context entirely -- not just unneeded, but for
+# node_modules and .next specifically, actively wrong to copy in (built
+# for the host's OS/arch, not the container's).
+node_modules
+.next
+.git
+.gstack
+.claude
+
+# Runtime data -- the container gets its own via a volume mount, never
+# baked into the image.
+data
+*.sqlite
+*.sqlite-*
+
+.env*
+!.env.example
+
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+
+.DS_Store

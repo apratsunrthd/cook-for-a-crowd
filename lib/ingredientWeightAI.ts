@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { getAnthropicApiKey } from "./settings";
 import type { ParsedIngredient } from "./types";
 
 // Haiku, not Sonnet/Opus -- batched estimation over a short ingredient
@@ -59,10 +60,11 @@ const ESTIMATES_TOOL: Anthropic.Tool = {
  */
 export async function estimateIngredientDetailsWithAI(lines: string[]): Promise<Map<number, IngredientEstimate>> {
   const result = new Map<number, IngredientEstimate>();
-  if (!process.env.ANTHROPIC_API_KEY || lines.length === 0) return result;
+  const apiKey = getAnthropicApiKey();
+  if (!apiKey || lines.length === 0) return result;
 
   try {
-    const client = new Anthropic();
+    const client = new Anthropic({ apiKey });
     const numbered = lines.map((line, i) => `${i}. ${line}`).join("\n");
     const response = await client.messages.create({
       model: MODEL,

@@ -10,6 +10,7 @@ instructions (installing, running), see [README.md](README.md).
 ## Contents
 
 - [The basic workflow](#the-basic-workflow)
+- [Settings](#settings)
 - [Recipes](#recipes)
   - [Importing a recipe](#importing-a-recipe)
   - [Generating a recipe with AI](#generating-a-recipe-with-ai)
@@ -48,6 +49,18 @@ instructions (installing, running), see [README.md](README.md).
 
 Everything scales automatically from the event's target headcount. Change
 the RSVP count and every dish, drink, and supply recalculates.
+
+## Settings
+
+One page, reached from the top nav, for configuration that isn't tied to
+any particular event or recipe. Right now that's just the Anthropic API
+key that powers the AI features (Generate with AI, Suggest drinks) — paste
+one in and it works immediately, no file editing or server restart. Shows
+the last 4 characters of whichever key is currently active so you can
+confirm it's the one you meant, and a "Remove saved key" option to go back
+to whatever's (if anything) set via the `ANTHROPIC_API_KEY` environment
+variable. Nothing here is required — every non-AI feature works with no
+key configured at all.
 
 ## Recipes
 
@@ -329,10 +342,14 @@ A few rules apply everywhere in the app, worth understanding once:
 ## Troubleshooting
 
 - **AI features (Generate with AI, Suggest drinks, revising a recipe) say
-  they're not set up.** Add `ANTHROPIC_API_KEY` to `.env.local` (copy
-  `.env.example` as a starting point) and restart the dev server. Everything
-  else in the app works fine without it — importing, scaling, shopping
-  lists, supplies, and manually-entered drinks don't need it.
+  they're not set up.** Open **Settings** in the top nav and paste in an
+  [Anthropic API key](https://console.anthropic.com/settings/keys) — it
+  saves to the app's own database and works immediately, no file editing or
+  restart needed. (You can also set `ANTHROPIC_API_KEY` in `.env.local`
+  instead if you'd rather — a key pasted into Settings takes priority over
+  it either way.) Everything else in the app works fine without one —
+  importing, scaling, shopping lists, supplies, and manually-entered drinks
+  don't need it.
 - **A URL import fails or gets blocked.** Paste the page's HTML source
   (view-source) or just its visible recipe text instead — the same paste box
   handles all three.
