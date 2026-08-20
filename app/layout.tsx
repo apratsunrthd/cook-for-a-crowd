@@ -68,6 +68,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             >
               Recipes
             </Link>
+            <Link
+              href="/settings"
+              className="text-sm text-black/70 dark:text-white/70 hover:underline"
+            >
+              Settings
+            </Link>
             <div className="ml-auto">
               <ThemeToggle />
             </div>

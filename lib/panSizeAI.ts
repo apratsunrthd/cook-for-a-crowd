@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { PanSize } from "./panSize";
 import type { ImportedRecipeDraft } from "./recipeImport";
+import { getAnthropicApiKey } from "./settings";
 
 // Haiku, not Sonnet/Opus -- this is a small extraction task (does this text
 // mention a pan size, and what is it), not something that needs a bigger
@@ -67,11 +68,12 @@ export function toolInputToPanSize(data: PanSizeToolInput): PanSize | null {
  * of a recipe import.
  */
 export async function detectPanSizeWithAI(text: string): Promise<PanSize | null> {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
+  const apiKey = getAnthropicApiKey();
+  if (!apiKey) return null;
   if (!text.trim()) return null;
 
   try {
-    const client = new Anthropic();
+    const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 256,

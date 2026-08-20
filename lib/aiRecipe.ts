@@ -5,6 +5,7 @@ import { toolInputToPanSize } from "./panSizeAI";
 import { guessPanSize } from "./panSizeExtract";
 import { correctPotSizeForBulkIngredient } from "./potCapacity";
 import type { ImportedRecipeDraft } from "./recipeImport";
+import { getAnthropicApiKey } from "./settings";
 import type { Course } from "./types";
 
 // Sonnet 5, not Opus -- this is a small structured-output call, not a task
@@ -73,16 +74,18 @@ export interface RecipeRevisionContext {
   feedback: string;
 }
 
-let client: Anthropic | null = null;
-
 function getClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const apiKey = getAnthropicApiKey();
+  if (!apiKey) {
     throw new RecipeGenerationError(
-      "AI recipe generation isn't set up yet. Add ANTHROPIC_API_KEY to .env.local and restart the dev server.",
+      "AI recipe generation isn't set up yet. Add your Anthropic API key on the Settings page.",
     );
   }
-  if (!client) client = new Anthropic();
-  return client;
+  // Not cached at module level -- a key saved on the Settings page needs
+  // to take effect on the very next call, not after a server restart.
+  // Constructing a client is cheap (no network call); the AI request
+  // itself dwarfs this either way.
+  return new Anthropic({ apiKey });
 }
 
 export async function generateRecipeWithAI(

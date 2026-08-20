@@ -93,7 +93,10 @@ machine) doesn't lose anything.
   workload.
 - An [Anthropic API key](https://console.anthropic.com/settings/keys) — optional, only needed
   for the "Generate with AI" recipe and drink-suggestion features. Everything else (import,
-  manual entry, scaling, shopping lists) works without one.
+  manual entry, scaling, shopping lists) works without one. Easiest way to add one: open the
+  app, go to **Settings**, and paste it in there — it saves to the app's own database and
+  works immediately, no file editing or restart needed. (Setting `ANTHROPIC_API_KEY` in
+  `.env.local`, below, still works too, as a fallback for whenever Settings doesn't have one.)
 
 ### Install and run
 
@@ -101,7 +104,7 @@ machine) doesn't lose anything.
 git clone https://github.com/apratsunrthd/cook-for-a-crowd.git
 cd cook-for-a-crowd
 npm install
-cp .env.example .env.local   # optional: add an ANTHROPIC_API_KEY for AI features
+cp .env.example .env.local   # optional -- or just add your key in-app under Settings instead
 npm run dev
 ```
 
@@ -189,9 +192,13 @@ file needs. [Fly.io](https://fly.io/) does, cheaply, via
 fly auth login
 fly launch --no-deploy      # detects the Dockerfile; let it adjust fly.toml if it wants to
 fly volumes create cook_for_a_crowd_data --size 1
-fly secrets set ANTHROPIC_API_KEY=sk-ant-...   # optional, for AI features
 fly deploy
 ```
+
+No `ANTHROPIC_API_KEY` secret to set here — once it's deployed, open the app's
+URL, go to **Settings**, and paste your key in there instead. Works
+immediately, and means whoever's actually using the app can set it up
+without needing `flyctl` or shell access at all.
 
 `fly.toml` in this repo is a starting point already wired up for the
 volume and for scaling to zero when idle (cheaper for a personal tool that
@@ -236,8 +243,11 @@ into the "User data" field under Advanced details → in the security group,
 only open port 22 (SSH, for yourself) until the Basic Auth proxy is set
 up, then add 80 and 443.
 
-Either way: SSH in, add your `ANTHROPIC_API_KEY` and (if you want it
-public) the Basic Auth settings to `/opt/cook-for-a-crowd/.env.local`, then
+Either way: once it's running, open the app in your browser and add your
+Anthropic API key under **Settings** — no SSH needed for that part. If you
+want it public, you'll still need to SSH in once to add the Basic Auth
+settings to `/opt/cook-for-a-crowd/.env.local` (that part genuinely is proxy
+configuration, not something the app's own UI manages), then
 `cd /opt/cook-for-a-crowd && docker compose --profile proxy up -d --build --wait`.
 
 ### Why not Cloud Run, App Runner, or other "serverless" container platforms?

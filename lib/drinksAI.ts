@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { getAnthropicApiKey } from "./settings";
 
 // Sonnet, not Haiku -- this needs actual regional/cultural judgment (e.g.
 // sweet tea vastly outdrawing unsweet at a Southern U.S. event), closer to
@@ -50,16 +51,16 @@ export interface SuggestedDrink {
   unitLabel: string;
 }
 
-let client: Anthropic | null = null;
-
 function getClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const apiKey = getAnthropicApiKey();
+  if (!apiKey) {
     throw new DrinkSuggestionError(
-      "AI drink suggestions aren't set up yet. Add ANTHROPIC_API_KEY to .env.local and restart the dev server.",
+      "AI drink suggestions aren't set up yet. Add your Anthropic API key on the Settings page.",
     );
   }
-  if (!client) client = new Anthropic();
-  return client;
+  // Not cached at module level -- see the identical comment in
+  // aiRecipe.ts's getClient().
+  return new Anthropic({ apiKey });
 }
 
 /**
