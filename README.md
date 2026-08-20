@@ -44,27 +44,53 @@ separate backend), Anthropic's API for the optional AI features. See
 
 ## Getting started
 
-### The easy way (macOS)
+### The easy way
 
-Double-click **`Start Cook for a Crowd.command`** in this folder. It installs
-everything the first time (takes a minute), builds the app, starts it, and
-opens it in your browser. It only rebuilds when the code has actually
-changed since the last time you ran it (e.g. after pulling in an update),
-so an ordinary run starts in well under a second. Keep the window it opens
-on screen while you're using the app; closing it (or hitting Ctrl+C) stops
-the app. Still needs Node installed once (see Prerequisites below) — the
-script doesn't set that part up for you.
+Pick the one for your OS. Each installs everything the first time (the first
+run takes a minute or two), starts the app, and opens it in your browser.
+Every run after that is fast — the macOS script only rebuilds when the code
+has actually changed since last time; the two Docker-based ones let
+Docker's own build cache do the same thing.
+
+- **macOS** — double-click **`Start Cook for a Crowd.command`**. Runs
+  natively (no Docker needed). Keep the window it opens on screen while
+  you're using the app; closing it (or hitting Ctrl+C) stops the app. Needs
+  Node installed once — see Prerequisites below.
+- **Windows** — double-click **`Start Cook for a Crowd.bat`**. Needs
+  [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+  installed and running first. Unlike the macOS script, the app keeps
+  running in the background afterward (as a Docker container) even after
+  the window closes — run **`Stop Cook for a Crowd.bat`** when you're done.
+- **Linux** — run `./start-cook-for-a-crowd.sh`. Needs
+  [Docker](https://docs.docker.com/engine/install/) installed and running
+  first. Same background-container behavior as Windows — run
+  `./stop-cook-for-a-crowd.sh` when you're done.
+
+Windows and Linux go through Docker specifically to sidestep
+`better-sqlite3`'s native addon compile step — the actual cross-platform
+pain point, especially on Windows, where getting a working C/C++ toolchain
+set up is real friction. The native module compiles once, inside the
+Docker image, against a known-good environment; you never need a compiler
+on your own machine. All three ways read and write the same `data/` folder
+on your computer, so switching between them (or moving to a different
+machine) doesn't lose anything.
 
 ### Prerequisites
 
-- **Node.js 20 or later** (check with `node --version`).
-- A C/C++ build toolchain, needed the first time `npm install` compiles
-  `better-sqlite3`'s native addon:
-  - **macOS** — Xcode Command Line Tools: `xcode-select --install`
-  - **Linux** — `build-essential` and `python3` (e.g. `sudo apt install build-essential python3`)
-  - **Windows** — easiest via [WSL](https://learn.microsoft.com/windows/wsl/) using the Linux
-    instructions above; native Windows works too with the "Desktop development with C++"
-    Visual Studio workload, but WSL is the smoother path.
+- **For the macOS launcher**: [Node.js 22 or later](https://nodejs.org/)
+  (check with `node --version`) and a C/C++ build toolchain, needed the
+  first time `npm install` compiles `better-sqlite3`'s native addon —
+  Xcode Command Line Tools: `xcode-select --install`.
+- **For the Windows/Linux launchers**: [Docker](https://docs.docker.com/get-started/get-docker/)
+  (Docker Desktop on Windows, Docker Engine or Desktop on Linux) — nothing
+  else, no Node install needed on the host at all.
+- **Running the app directly with Node** (any OS, no launcher script) needs
+  Node 22+ and the same native build toolchain as macOS above — on Linux
+  that's `build-essential` and `python3` (e.g.
+  `sudo apt install build-essential python3`); on Windows, either
+  [WSL](https://learn.microsoft.com/windows/wsl/) plus the Linux
+  instructions, or the "Desktop development with C++" Visual Studio
+  workload.
 - An [Anthropic API key](https://console.anthropic.com/settings/keys) — optional, only needed
   for the "Generate with AI" recipe and drink-suggestion features. Everything else (import,
   manual entry, scaling, shopping lists) works without one.
@@ -100,7 +126,9 @@ This app isn't deployed anywhere — it's meant to run on your own machine
   repo/cloud drive) is enough.
 - To keep it running in the background, use whatever you'd normally reach
   for (`tmux`, `screen`, a `launchd`/`systemd` unit, `pm2`) — there's
-  nothing app-specific here.
+  nothing app-specific here. The Windows/Linux Docker launchers already do
+  this for you (the container's `restart: unless-stopped` policy brings it
+  back after a reboot or Docker restart on its own).
 
 ## Testing
 
