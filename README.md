@@ -44,6 +44,15 @@ separate backend), Anthropic's API for the optional AI features. See
 
 ## Getting started
 
+### The easy way (macOS)
+
+Double-click **`Start Cook for a Crowd.command`** in this folder. It installs
+everything the first time (takes a minute), starts the app, and opens it in
+your browser — every time after that, it just opens straight away. Keep the
+window it opens on screen while you're using the app; closing it (or hitting
+Ctrl+C) stops the app. Still needs Node installed once (see Prerequisites
+below) — the script doesn't set that part up for you.
+
 ### Prerequisites
 
 - **Node.js 20 or later** (check with `node --version`).
