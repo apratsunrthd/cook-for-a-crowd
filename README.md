@@ -47,11 +47,13 @@ separate backend), Anthropic's API for the optional AI features. See
 ### The easy way (macOS)
 
 Double-click **`Start Cook for a Crowd.command`** in this folder. It installs
-everything the first time (takes a minute), starts the app, and opens it in
-your browser — every time after that, it just opens straight away. Keep the
-window it opens on screen while you're using the app; closing it (or hitting
-Ctrl+C) stops the app. Still needs Node installed once (see Prerequisites
-below) — the script doesn't set that part up for you.
+everything the first time (takes a minute), builds the app, starts it, and
+opens it in your browser. It only rebuilds when the code has actually
+changed since the last time you ran it (e.g. after pulling in an update),
+so an ordinary run starts in well under a second. Keep the window it opens
+on screen while you're using the app; closing it (or hitting Ctrl+C) stops
+the app. Still needs Node installed once (see Prerequisites below) — the
+script doesn't set that part up for you.
 
 ### Prerequisites
 
@@ -87,9 +89,11 @@ there's no auth and no multi-tenant support, by design (see `CLAUDE.md`).
 This app isn't deployed anywhere — it's meant to run on your own machine
 (or a home server) for as long as you're using it:
 
-- `npm run dev` is fine for normal use; it doesn't need to be "production."
-  If you'd rather run a built version, `npm run build && npm start` works
-  the same way, just without hot-reload.
+- The launcher above runs a production build (`npm run build && npm start`,
+  rebuilding only when needed). `npm run dev` also works fine if you're
+  editing the code yourself and want hot-reload — it just always reflects
+  whatever's on disk with no separate build step, at the cost of a bit more
+  per-page latency and no upfront type-check.
 - Back up `data/cook-for-a-crowd.sqlite` yourself if you care about the
   recipes and events in it — it's a single file, gitignored, and not backed
   up anywhere automatically. Copying it elsewhere (or into your own private
