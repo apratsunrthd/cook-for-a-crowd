@@ -96,7 +96,7 @@ describe("formatShoppingListItem", () => {
     const items = aggregateIngredients([
       { recipeName: "A", ingredients: [scaled("2 cups flour")] },
     ]);
-    expect(formatShoppingListItem(items[0])).toBe("2 cups flour (240 g)");
+    expect(formatShoppingListItem(items[0])).toBe("2 cups flour (240 g / 8.5 oz)");
   });
 
   it("formats a needs-review item using its raw description", () => {
@@ -108,6 +108,6 @@ describe("formatShoppingListItem", () => {
     const items = aggregateIngredients([
       { recipeName: "Green Beans", ingredients: [scaled("10 (14.5 oz) cans green beans, drained")] },
     ]);
-    expect(formatShoppingListItem(items[0])).toBe("10 (14.5 oz) cans green beans, drained (4.11 kg)");
+    expect(formatShoppingListItem(items[0])).toBe("10 (14.5 oz) cans green beans, drained (4.11 kg / 9 lb 1 oz)");
   });
 });

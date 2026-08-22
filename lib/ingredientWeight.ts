@@ -75,17 +75,43 @@ export function densityGramsPerCup(description: string): number | null {
   return null;
 }
 
+// Per-item weight for common bare-count whole ingredients ("7 chicken
+// breast halves", no unit) -- deliberately not left to the AI estimator in
+// ingredientWeightAI.ts. Today's boneless skinless chicken breast halves
+// run 6-8 oz each; 200g (~7 oz) is the middle of that range and matches
+// real grocery weigh-ins, whereas the AI fallback had guessed as low as
+// 150g/half (a ~30% undercount on a shopping list) before this table
+// existed. Add more entries here only once a similar undercount/overcount
+// is actually observed -- this isn't meant to become exhaustive.
+const COUNT_WEIGHT_TABLE: Array<{ keywords: string[]; gramsPerItem: number }> = [
+  { keywords: ["chicken breast"], gramsPerItem: 200 },
+];
+
+export function countWeightGramsPerItem(description: string): number | null {
+  const lower = description.toLowerCase();
+  for (const entry of COUNT_WEIGHT_TABLE) {
+    if (entry.keywords.some((keyword) => lower.includes(keyword))) return entry.gramsPerItem;
+  }
+  return null;
+}
+
 /**
  * Deterministic gram estimate for one ingredient at its raw (unscaled)
  * quantity -- exact for ingredients already given by weight (oz, lb, g, kg),
- * density-estimated for common ingredients given by volume, and null
- * (rather than a guess) for anything else -- count-based lines ("3 eggs"),
- * unrecognized ingredients, or lines with no parsed quantity/unit at all.
+ * density-estimated for common ingredients given by volume, per-item for a
+ * short list of common bare-count whole ingredients (see
+ * COUNT_WEIGHT_TABLE), and null (rather than a guess) for anything else --
+ * unrecognized ingredients, or lines with no parsed quantity at all.
  */
 export function estimateGramsAtRawQuantity(
   ingredient: Pick<ParsedIngredient, "quantity" | "unit" | "description">,
 ): number | null {
-  if (ingredient.quantity === null || !ingredient.unit) return null;
+  if (ingredient.quantity === null) return null;
+
+  if (!ingredient.unit) {
+    const gramsPerItem = countWeightGramsPerItem(ingredient.description);
+    return gramsPerItem !== null ? ingredient.quantity * gramsPerItem : null;
+  }
 
   const gramsFromMass = convertUnit(ingredient.quantity, ingredient.unit, "gram");
   if (gramsFromMass !== null) return gramsFromMass;

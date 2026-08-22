@@ -28,9 +28,13 @@ describe("estimateGramsAtRawQuantity", () => {
     expect(brownSugarGrams).toBeCloseTo(213, 1);
   });
 
-  it("returns null for count-based ingredients with no unit", () => {
+  it("returns null for count-based ingredients with no unit and no known per-item weight", () => {
     expect(grams("3 large eggs")).toBeNull();
     expect(grams("2 cloves garlic, minced")).toBeNull();
+  });
+
+  it("uses a known per-item weight for bare-count ingredients in the count weight table", () => {
+    expect(grams("7 skinless, boneless chicken breast halves")).toBeCloseTo(1400, 1);
   });
 
   it("returns null for volume units with no known density (e.g. crushed crackers)", () => {
@@ -63,15 +67,19 @@ describe("densityGramsPerCup for canned vegetables/beans", () => {
 });
 
 describe("formatGrams", () => {
-  it("formats under 1000g in grams", () => {
-    expect(formatGrams(487)).toBe("487 g");
+  it("formats under 1000g in grams, with imperial alongside", () => {
+    expect(formatGrams(487)).toBe("487 g / 1 lb 1 oz");
   });
 
-  it("formats 1000g and above in kg", () => {
-    expect(formatGrams(1200)).toBe("1.20 kg");
+  it("formats 1000g and above in kg, with imperial alongside", () => {
+    expect(formatGrams(1200)).toBe("1.20 kg / 2 lb 10 oz");
   });
 
   it("rounds grams to the nearest whole number", () => {
-    expect(formatGrams(113.5)).toBe("114 g");
+    expect(formatGrams(113.5)).toBe("114 g / 4 oz");
+  });
+
+  it("omits imperial for amounts too small to express usefully", () => {
+    expect(formatGrams(1)).toBe("1 g");
   });
 });
