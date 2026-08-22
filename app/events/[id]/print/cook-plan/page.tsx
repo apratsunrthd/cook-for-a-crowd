@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { CookPlan } from "@/components/CookPlan";
+import { EquipmentList } from "@/components/EquipmentList";
 import { PrintButton } from "@/components/PrintButton";
 import { getDb } from "@/lib/db";
 import { getEventPlan } from "@/lib/eventPlan";
@@ -28,7 +30,12 @@ export default async function CookPlanPrintPage({ params }: PageProps<"/events/[
       {dishes.length === 0 ? (
         <p className="text-sm text-black/60 dark:text-white/60">No dishes added to this event yet.</p>
       ) : (
-        <CookPlan dishes={dishes} />
+        <>
+          <CookPlan dishes={dishes} />
+          <Suspense fallback={null}>
+            <EquipmentList dishes={dishes} headcount={plan.headcount} />
+          </Suspense>
+        </>
       )}
     </div>
   );

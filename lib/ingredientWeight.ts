@@ -100,10 +100,23 @@ export function estimateGramsAtRawQuantity(
   return null;
 }
 
-/** "487 g" under 1000g, "1.2 kg" at or above -- rounded to sensible cooking precision. */
-export function formatGrams(grams: number): string {
-  if (grams >= 1000) {
-    return `${(grams / 1000).toFixed(2)} kg`;
+/** "3 oz", "1 lb 4 oz", etc. Returns null for amounts too small to express usefully in imperial. */
+export function formatImperial(grams: number): string | null {
+  const oz = grams / 28.3495;
+  if (oz < 0.1) return null;
+  if (oz < 16) {
+    const rounded = Math.round(oz * 10) / 10;
+    return `${rounded} oz`;
   }
-  return `${Math.round(grams)} g`;
+  const totalOz = Math.round(oz);
+  const lb = Math.floor(totalOz / 16);
+  const remainingOz = totalOz % 16;
+  return remainingOz === 0 ? `${lb} lb` : `${lb} lb ${remainingOz} oz`;
+}
+
+/** "487 g / 17.2 oz" under 1000g, "1.47 kg / 3 lb 4 oz" at or above. */
+export function formatGrams(grams: number): string {
+  const metric = grams >= 1000 ? `${(grams / 1000).toFixed(2)} kg` : `${Math.round(grams)} g`;
+  const imperial = formatImperial(grams);
+  return imperial ? `${metric} / ${imperial}` : metric;
 }

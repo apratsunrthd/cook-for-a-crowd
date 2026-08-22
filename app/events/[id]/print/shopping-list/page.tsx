@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { EquipmentList } from "@/components/EquipmentList";
 import { PrintButton } from "@/components/PrintButton";
 import { ShoppingList } from "@/components/ShoppingList";
 import { getDb } from "@/lib/db";
@@ -21,7 +23,7 @@ export default async function ShoppingListPrintPage({
   const db = getDb();
   const plan = getEventPlan(db, Number(id));
   if (!plan) notFound();
-  const { event, headcount, shoppingList } = plan;
+  const { event, headcount, shoppingList, dishes } = plan;
   const drinks = listDrinksForEvent(db, event.id);
   const drinkHeadcounts = splitDrinkHeadcounts(drinks, headcount);
   const supplies = listSuppliesForEvent(db, event.id);
@@ -86,6 +88,12 @@ export default async function ShoppingListPrintPage({
             ))}
           </ul>
         </div>
+      )}
+
+      {dishes.length > 0 && (
+        <Suspense fallback={null}>
+          <EquipmentList dishes={dishes} headcount={headcount} />
+        </Suspense>
       )}
     </div>
   );
