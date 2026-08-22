@@ -9,7 +9,7 @@ import { DrinksCard } from "@/components/DrinksCard";
 import { Menu } from "@/components/Menu";
 import { PurchasedItemsCard } from "@/components/PurchasedItemsCard";
 import { RecipeVariantsCard } from "@/components/RecipeVariantsCard";
-import { ShoppingList } from "@/components/ShoppingList";
+import { ShoppingListSection } from "@/components/ShoppingListSection";
 import { SuppliesCard } from "@/components/SuppliesCard";
 import { getDb } from "@/lib/db";
 import { getEventPlan } from "@/lib/eventPlan";
@@ -130,12 +130,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
       )}
 
       <section className="space-y-4">
-        <ShoppingList items={shoppingList} eventName={event.name} eventId={event.id} showPrintLink />
-        {dishes.length > 0 && (
-          <Suspense fallback={null}>
-            <EquipmentList dishes={dishes} headcount={headcount} />
-          </Suspense>
-        )}
+        <ShoppingListSection items={shoppingList} eventName={event.name} eventId={event.id} showPrintLink />
       </section>
     </div>
   );

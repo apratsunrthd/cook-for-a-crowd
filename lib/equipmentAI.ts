@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { cache } from "react";
-import { formatPanSize, sameVesselFamily, servingsPerPan, vesselNoun, type PanSize } from "./panSize";
+import { formatPanSize, sameVesselFamily, servingsPerPan, vesselNoun, vesselPresetName, type PanSize } from "./panSize";
 import { batchesNeeded } from "./scale";
 import { getAnthropicApiKey } from "./settings";
 import type { Course } from "./types";
@@ -27,10 +27,26 @@ export interface DishForEquipment {
 
 export interface VesselItem {
   count: number;
-  label: string;
-  noun: string;
+  /** e.g. "Half-size steam table pan (12.75" x 10.375")" or, for a custom size with no preset match, just "12.75" x 10.375" pan". */
+  displayName: string;
   dishName: string;
   variantLabel: string | null;
+}
+
+/** A vessel's full display name -- its familiar preset name plus dimensions when it matches a PAN_PRESETS entry ("Half-size steam table pan (12.75" x 10.375")"), or just dimensions with the pot/pan noun otherwise. */
+function vesselDisplayName(size: PanSize): string {
+  const dims = formatPanSize(size);
+  const presetName = vesselPresetName(size);
+  if (presetName) {
+    // A pot preset's name already spells out its capacity ("12 qt stock
+    // pot") -- appending dims would just repeat "12 qt pot" a second time.
+    // A pan preset's name doesn't say how big it is ("Half-size steam
+    // table pan"), so dims are worth adding there.
+    return size.shape === "pot" ? presetName : `${presetName} (${dims})`;
+  }
+  // formatPanSize already spells out "qt pot" for a pot -- only a pan needs
+  // the noun appended to read as a vessel ("12.75" x 10.375" pan").
+  return vesselNoun(size) === "pot" ? dims : `${dims} pan`;
 }
 
 export interface EquipmentItem {
@@ -63,8 +79,7 @@ export function computeVessels(dishes: DishForEquipment[]): VesselItem[] {
       if (!batches) continue;
       vessels.push({
         count: batches,
-        label: formatPanSize(panSize),
-        noun: vesselNoun(panSize),
+        displayName: vesselDisplayName(panSize),
         dishName: dish.recipe.name,
         variantLabel: dish.variants.length > 1 ? variant.label : null,
       });
@@ -135,7 +150,7 @@ export const suggestEquipment = cache(async (
     .join("; ");
 
   const vesselSummary = computeVessels(dishes)
-    .map((v) => `${v.count}× ${v.label} ${v.noun} for ${v.dishName}${v.variantLabel ? ` (${v.variantLabel})` : ""}`)
+    .map((v) => `${v.count}× ${v.displayName} for ${v.dishName}${v.variantLabel ? ` (${v.variantLabel})` : ""}`)
     .join("; ");
 
   let response: Anthropic.Message;

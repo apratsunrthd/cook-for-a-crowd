@@ -10,7 +10,7 @@ function VesselSection({ vessels }: { vessels: VesselItem[] }) {
       <ul className="text-sm pl-4 list-disc space-y-0.5">
         {vessels.map((v, i) => (
           <li key={i}>
-            {v.count}&times; {v.label}{v.noun === "pan" ? ` ${v.noun}` : ""}
+            {v.count}&times; {v.displayName}
             <span className="text-black/60 dark:text-white/60">
               {" — "}
               {v.dishName}

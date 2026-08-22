@@ -144,3 +144,29 @@ export function formatPanSize(size: PanSize): string {
   if (size.shape === "pot") return `${size.quartsCapacity ?? "?"} qt pot`;
   return `${size.widthIn ?? "?"}" x ${size.heightIn ?? "?"}"`;
 }
+
+function sameSize(a: PanSize, b: PanSize): boolean {
+  if (a.shape !== b.shape) return false;
+  if (a.shape === "round") return a.diameterIn === b.diameterIn;
+  if (a.shape === "pot") return a.quartsCapacity === b.quartsCapacity;
+  return a.widthIn === b.widthIn && a.heightIn === b.heightIn;
+}
+
+/** The PAN_PRESETS entry this exact size came from, if any -- a size entered via PanSizeCalculator's "custom" option won't match one. */
+export function presetForSize(size: PanSize): PanPreset | null {
+  return PAN_PRESETS.find((p) => sameSize(p.size, size)) ?? null;
+}
+
+/**
+ * A vessel's familiar name -- "Half-size steam table pan" rather than just
+ * its dimensions -- when it matches a PAN_PRESETS entry; null for a custom
+ * size with no such name to fall back on.
+ */
+export function vesselPresetName(size: PanSize): string | null {
+  const preset = presetForSize(size);
+  if (!preset) return null;
+  // PAN_PRESETS labels carry their own trailing "(WxH)" annotation --
+  // strip it since callers that want dimensions already have
+  // formatPanSize for that, and pairing both verbatim would repeat them.
+  return preset.label.replace(/\s*\([^)]*\)\s*$/, "").trim();
+}

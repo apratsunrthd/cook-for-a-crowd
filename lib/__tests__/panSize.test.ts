@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAN_PRESETS, formatPanSize, panArea, panAreaRatio, servingsPerPan } from "../panSize";
+import { PAN_PRESETS, formatPanSize, panArea, panAreaRatio, presetForSize, servingsPerPan, vesselPresetName } from "../panSize";
 
 describe("panArea", () => {
   it("computes area for a rectangular pan", () => {
@@ -81,5 +81,24 @@ describe("formatPanSize", () => {
 
   it("formats a pot", () => {
     expect(formatPanSize({ shape: "pot", quartsCapacity: 12 })).toBe("12 qt pot");
+  });
+});
+
+describe("presetForSize / vesselPresetName", () => {
+  it("matches a size that came from a PAN_PRESETS entry", () => {
+    const halfSteamTable = PAN_PRESETS.find((p) => p.id === "steam-half")!.size;
+    expect(presetForSize(halfSteamTable)?.id).toBe("steam-half");
+    expect(vesselPresetName(halfSteamTable)).toBe("Half-size steam table pan");
+  });
+
+  it("returns null for a custom size with no matching preset", () => {
+    const custom = { shape: "rectangle" as const, widthIn: 11, heightIn: 15 };
+    expect(presetForSize(custom)).toBeNull();
+    expect(vesselPresetName(custom)).toBeNull();
+  });
+
+  it("matches a pot preset by capacity", () => {
+    const twelveQt = PAN_PRESETS.find((p) => p.id === "pot-12qt")!.size;
+    expect(vesselPresetName(twelveQt)).toBe("12 qt stock pot");
   });
 });

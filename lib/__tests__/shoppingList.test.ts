@@ -110,4 +110,24 @@ describe("formatShoppingListItem", () => {
     ]);
     expect(formatShoppingListItem(items[0])).toBe("10 (14.5 oz) cans green beans, drained (4.11 kg / 9 lb 1 oz)");
   });
+
+  it("rounds a fractional can total up to a whole can -- you can't buy 1/8 of a can", () => {
+    const items = aggregateIngredients([
+      { recipeName: "A", ingredients: [scaled("1 5/8 (10.5 ounce) cans condensed soup")] },
+    ]);
+    expect(items[0].quantity).toBeCloseTo(1.625, 3);
+    expect(formatShoppingListItem(items[0])).toMatch(/^2 \(10\.5 ounce\) cans condensed soup/);
+  });
+
+  it("rounds a fractional sleeve total up to a whole sleeve", () => {
+    const items = aggregateIngredients([
+      { recipeName: "A", ingredients: [scaled("8 1/8 sleeve buttery round crackers, crushed")] },
+    ]);
+    expect(formatShoppingListItem(items[0])).toMatch(/^9 sleeve buttery round crackers/);
+  });
+
+  it("leaves a continuous amount (cups, tablespoons) exact, not rounded up", () => {
+    const items = aggregateIngredients([{ recipeName: "A", ingredients: [scaled("2 1/4 cups flour")] }]);
+    expect(formatShoppingListItem(items[0])).toMatch(/^2 1\/4 cups flour/);
+  });
 });

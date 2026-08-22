@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { guessRoundsToWhole } from "../ingredientDivisibility";
+import { guessRoundsToWhole, isContainerItem } from "../ingredientDivisibility";
 import { parseIngredientLine } from "../ingredientParser";
 
 describe("guessRoundsToWhole", () => {
@@ -23,5 +23,21 @@ describe("guessRoundsToWhole", () => {
 
   it("is case-insensitive on the container keyword", () => {
     expect(guessRoundsToWhole({ unit: null, description: "Can green beans" })).toBe(false);
+  });
+});
+
+describe("isContainerItem", () => {
+  it("is true for a recognized container unit", () => {
+    expect(isContainerItem({ unit: "can", description: "condensed cream of chicken soup" })).toBe(true);
+    expect(isContainerItem({ unit: "container", description: "sour cream" })).toBe(true);
+  });
+
+  it("is true for a bare-count line with a leading container word", () => {
+    expect(isContainerItem({ unit: null, description: "sleeve buttery round crackers, crushed" })).toBe(true);
+  });
+
+  it("is false for a genuine whole food item or a continuous unit", () => {
+    expect(isContainerItem({ unit: null, description: "skinless, boneless chicken breast halves" })).toBe(false);
+    expect(isContainerItem({ unit: "cup", description: "shredded Cheddar cheese" })).toBe(false);
   });
 });

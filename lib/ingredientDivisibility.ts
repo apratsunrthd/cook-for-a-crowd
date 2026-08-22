@@ -40,6 +40,14 @@ const CONTAINER_WORDS = new Set([
   "tubs",
 ]);
 
+// A parenthetical unit note ("(15 oz) cans...") that `parse-ingredient`
+// couldn't attach as a real unit ends up stuck at the front of
+// `description` -- strip it before looking for a leading container word.
+function leadingWord(description: string): string {
+  const withoutLeadingParenthetical = description.trim().replace(/^\([^)]*\)\s*/, "");
+  return withoutLeadingParenthetical.split(/\s+/)[0]?.toLowerCase() ?? "";
+}
+
 /**
  * Best-effort deterministic guess at whether this ingredient's quantity
  * must stay a whole number when scaled. Only bare counts (no recognized
@@ -53,10 +61,20 @@ const CONTAINER_WORDS = new Set([
  */
 export function guessRoundsToWhole(ingredient: Pick<ParsedIngredient, "unit" | "description">): boolean {
   if (ingredient.unit !== null) return false;
-  // A parenthetical unit note ("(15 oz) cans...") that `parse-ingredient`
-  // couldn't attach as a real unit ends up stuck at the front of
-  // `description` -- strip it before looking for the container word.
-  const withoutLeadingParenthetical = ingredient.description.trim().replace(/^\([^)]*\)\s*/, "");
-  const firstWord = withoutLeadingParenthetical.split(/\s+/)[0]?.toLowerCase() ?? "";
-  return !CONTAINER_WORDS.has(firstWord);
+  return !CONTAINER_WORDS.has(leadingWord(ingredient.description));
+}
+
+/**
+ * True for a line that's actually bought as a whole container -- a can,
+ * jar, box, sleeve, bag, etc. -- whether that's already a recognized unit
+ * (`unit === "can"`) or a bare-count line with a leading container word in
+ * its description ("sleeve buttery round crackers"). Distinct from
+ * `roundsToWhole`/`guessRoundsToWhole`, which answer "can a recipe use a
+ * fraction of this" (yes -- half a can) -- this instead answers "can you
+ * buy a fraction of this" (no), which is what a shopping list quantity
+ * needs to round up to.
+ */
+export function isContainerItem(item: { unit: string | null; description: string }): boolean {
+  if (item.unit !== null) return CONTAINER_WORDS.has(item.unit);
+  return CONTAINER_WORDS.has(leadingWord(item.description));
 }

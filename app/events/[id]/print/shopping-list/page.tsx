@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
-import { EquipmentList } from "@/components/EquipmentList";
 import { PrintButton } from "@/components/PrintButton";
-import { ShoppingList } from "@/components/ShoppingList";
+import { ShoppingListSection } from "@/components/ShoppingListSection";
 import { getDb } from "@/lib/db";
 import { drinkUnitsNeeded, splitDrinkHeadcounts } from "@/lib/drinks";
 import { getEventPlan } from "@/lib/eventPlan";
@@ -23,7 +21,7 @@ export default async function ShoppingListPrintPage({
   const db = getDb();
   const plan = getEventPlan(db, Number(id));
   if (!plan) notFound();
-  const { event, headcount, shoppingList, dishes } = plan;
+  const { event, headcount, shoppingList } = plan;
   const drinks = listDrinksForEvent(db, event.id);
   const drinkHeadcounts = splitDrinkHeadcounts(drinks, headcount);
   const supplies = listSuppliesForEvent(db, event.id);
@@ -38,7 +36,7 @@ export default async function ShoppingListPrintPage({
         <PrintButton />
       </div>
 
-      <ShoppingList items={shoppingList} eventName={event.name} eventId={event.id} />
+      <ShoppingListSection items={shoppingList} eventName={event.name} eventId={event.id} />
 
       {drinks.length > 0 && (
         <div className="space-y-2">
@@ -88,12 +86,6 @@ export default async function ShoppingListPrintPage({
             ))}
           </ul>
         </div>
-      )}
-
-      {dishes.length > 0 && (
-        <Suspense fallback={null}>
-          <EquipmentList dishes={dishes} headcount={headcount} />
-        </Suspense>
       )}
     </div>
   );
