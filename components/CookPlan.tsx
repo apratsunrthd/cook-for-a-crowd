@@ -122,10 +122,23 @@ function VariantPlan({
 
   const perPanFactor = perPanServings / recipe.servings;
   const perPanIngredients = scaleIngredients(variant.ingredients, perPanFactor);
+  const totalBatchIngredients = batches > 1 ? scaleIngredients(variant.ingredients, batches * perPanFactor) : null;
 
   return (
     <div className="space-y-1">
       {header}
+      {totalBatchIngredients && (
+        <>
+          <div className="text-xs text-black/60 dark:text-white/60">Total batch ({batches} {noun}s combined):</div>
+          <ul className="text-sm pl-4 list-disc space-y-0.5">
+            {totalBatchIngredients.map((ingredient, idx) => (
+              <li key={idx} className={ingredient.needsReview ? "text-amber-600 dark:text-amber-400" : undefined}>
+                {formatScaledIngredient(ingredient)}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <div className="text-xs text-black/60 dark:text-white/60">Per {noun}:</div>
       <ul className="text-sm pl-4 list-disc space-y-0.5">
         {perPanIngredients.map((ingredient, idx) => (
