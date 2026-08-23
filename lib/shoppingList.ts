@@ -1,3 +1,4 @@
+import { isContainerItem } from "./ingredientDivisibility";
 import { formatGrams } from "./ingredientWeight";
 import { formatQuantity } from "./quantityFormat";
 import { pluralizeUnit } from "./unitFormat";
@@ -90,9 +91,16 @@ export function formatShoppingListItem(item: ShoppingListItem): string {
   if (item.quantity === null) {
     return item.description;
   }
-  const unit = pluralizeUnit(item.unit, item.quantity);
+  // A shopping list is a "how much to buy" layer, not "how much to use" --
+  // a recipe can call for 1 5/8 cans of soup, but the store only sells
+  // whole cans, so the quantity shown here rounds up for anything that's
+  // actually purchased as a whole container (can, sleeve, jar, box, ...).
+  // Continuous amounts (cups, tablespoons, grams) stay exact, since those
+  // really are divisible.
+  const displayQuantity = isContainerItem(item) ? Math.ceil(item.quantity) : item.quantity;
+  const unit = pluralizeUnit(item.unit, displayQuantity);
   const sizeAnnotation = item.sizeAnnotation ? `(${item.sizeAnnotation})` : null;
-  const parts = [formatQuantity(item.quantity), sizeAnnotation, unit, item.description].filter(
+  const parts = [formatQuantity(displayQuantity), sizeAnnotation, unit, item.description].filter(
     (part): part is string => !!part && part.length > 0,
   );
   const line = parts.join(" ");

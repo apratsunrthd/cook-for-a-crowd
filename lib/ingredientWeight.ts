@@ -75,17 +75,43 @@ export function densityGramsPerCup(description: string): number | null {
   return null;
 }
 
+// Per-item weight for common bare-count whole ingredients ("7 chicken
+// breast halves", no unit) -- deliberately not left to the AI estimator in
+// ingredientWeightAI.ts. Today's boneless skinless chicken breast halves
+// run 6-8 oz each; 200g (~7 oz) is the middle of that range and matches
+// real grocery weigh-ins, whereas the AI fallback had guessed as low as
+// 150g/half (a ~30% undercount on a shopping list) before this table
+// existed. Add more entries here only once a similar undercount/overcount
+// is actually observed -- this isn't meant to become exhaustive.
+const COUNT_WEIGHT_TABLE: Array<{ keywords: string[]; gramsPerItem: number }> = [
+  { keywords: ["chicken breast"], gramsPerItem: 200 },
+];
+
+export function countWeightGramsPerItem(description: string): number | null {
+  const lower = description.toLowerCase();
+  for (const entry of COUNT_WEIGHT_TABLE) {
+    if (entry.keywords.some((keyword) => lower.includes(keyword))) return entry.gramsPerItem;
+  }
+  return null;
+}
+
 /**
  * Deterministic gram estimate for one ingredient at its raw (unscaled)
  * quantity -- exact for ingredients already given by weight (oz, lb, g, kg),
- * density-estimated for common ingredients given by volume, and null
- * (rather than a guess) for anything else -- count-based lines ("3 eggs"),
- * unrecognized ingredients, or lines with no parsed quantity/unit at all.
+ * density-estimated for common ingredients given by volume, per-item for a
+ * short list of common bare-count whole ingredients (see
+ * COUNT_WEIGHT_TABLE), and null (rather than a guess) for anything else --
+ * unrecognized ingredients, or lines with no parsed quantity at all.
  */
 export function estimateGramsAtRawQuantity(
   ingredient: Pick<ParsedIngredient, "quantity" | "unit" | "description">,
 ): number | null {
-  if (ingredient.quantity === null || !ingredient.unit) return null;
+  if (ingredient.quantity === null) return null;
+
+  if (!ingredient.unit) {
+    const gramsPerItem = countWeightGramsPerItem(ingredient.description);
+    return gramsPerItem !== null ? ingredient.quantity * gramsPerItem : null;
+  }
 
   const gramsFromMass = convertUnit(ingredient.quantity, ingredient.unit, "gram");
   if (gramsFromMass !== null) return gramsFromMass;
@@ -100,10 +126,23 @@ export function estimateGramsAtRawQuantity(
   return null;
 }
 
-/** "487 g" under 1000g, "1.2 kg" at or above -- rounded to sensible cooking precision. */
-export function formatGrams(grams: number): string {
-  if (grams >= 1000) {
-    return `${(grams / 1000).toFixed(2)} kg`;
+/** "3 oz", "1 lb 4 oz", etc. Returns null for amounts too small to express usefully in imperial. */
+export function formatImperial(grams: number): string | null {
+  const oz = grams / 28.3495;
+  if (oz < 0.1) return null;
+  if (oz < 16) {
+    const rounded = Math.round(oz * 10) / 10;
+    return `${rounded} oz`;
   }
-  return `${Math.round(grams)} g`;
+  const totalOz = Math.round(oz);
+  const lb = Math.floor(totalOz / 16);
+  const remainingOz = totalOz % 16;
+  return remainingOz === 0 ? `${lb} lb` : `${lb} lb ${remainingOz} oz`;
+}
+
+/** "487 g / 17.2 oz" under 1000g, "1.47 kg / 3 lb 4 oz" at or above. */
+export function formatGrams(grams: number): string {
+  const metric = grams >= 1000 ? `${(grams / 1000).toFixed(2)} kg` : `${Math.round(grams)} g`;
+  const imperial = formatImperial(grams);
+  return imperial ? `${metric} / ${imperial}` : metric;
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
-import { ShoppingList } from "@/components/ShoppingList";
+import { ShoppingListSection } from "@/components/ShoppingListSection";
 import { getDb } from "@/lib/db";
 import { drinkUnitsNeeded, splitDrinkHeadcounts } from "@/lib/drinks";
 import { getEventPlan } from "@/lib/eventPlan";
@@ -36,7 +36,7 @@ export default async function ShoppingListPrintPage({
         <PrintButton />
       </div>
 
-      <ShoppingList items={shoppingList} eventName={event.name} eventId={event.id} />
+      <ShoppingListSection items={shoppingList} eventName={event.name} eventId={event.id} />
 
       {drinks.length > 0 && (
         <div className="space-y-2">

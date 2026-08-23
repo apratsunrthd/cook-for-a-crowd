@@ -23,7 +23,7 @@ describe("totalDishGrams", () => {
   });
 
   it("returns null when nothing in the dish could be weighed", () => {
-    expect(totalDishGrams([scaled("3 eggs"), scaled("2 chicken breasts")])).toBeNull();
+    expect(totalDishGrams([scaled("3 eggs"), scaled("2 cloves garlic, minced")])).toBeNull();
   });
 });
 

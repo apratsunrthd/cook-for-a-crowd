@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { AddRecipeToEvent } from "@/components/AddRecipeToEvent";
 import { CookPlan } from "@/components/CookPlan";
+import { EquipmentList } from "@/components/EquipmentList";
 import { DeleteEventButton } from "@/components/DeleteEventButton";
 import { DrinksCard } from "@/components/DrinksCard";
 import { Menu } from "@/components/Menu";
 import { PurchasedItemsCard } from "@/components/PurchasedItemsCard";
 import { RecipeVariantsCard } from "@/components/RecipeVariantsCard";
-import { ShoppingList } from "@/components/ShoppingList";
+import { ShoppingListSection } from "@/components/ShoppingListSection";
 import { SuppliesCard } from "@/components/SuppliesCard";
 import { getDb } from "@/lib/db";
 import { getEventPlan } from "@/lib/eventPlan";
@@ -113,19 +115,22 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
       </section>
 
       {dishes.length > 0 && (
-        <section className="space-y-2">
+        <section className="space-y-4">
           <CookPlan dishes={dishes} />
+          <Suspense fallback={null}>
+            <EquipmentList dishes={dishes} headcount={headcount} />
+          </Suspense>
           <Link
             href={`/events/${event.id}/print/cook-plan`}
-            className="text-sm underline text-black/70 dark:text-white/70"
+            className="text-sm underline text-black/70 dark:text-white/70 print:hidden"
           >
             Open printable view &rarr;
           </Link>
         </section>
       )}
 
-      <section className="space-y-2">
-        <ShoppingList items={shoppingList} eventName={event.name} eventId={event.id} showPrintLink />
+      <section className="space-y-4">
+        <ShoppingListSection items={shoppingList} eventName={event.name} eventId={event.id} showPrintLink />
       </section>
     </div>
   );

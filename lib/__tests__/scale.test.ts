@@ -181,17 +181,17 @@ describe("scaleRecipe", () => {
 describe("formatScaledIngredient", () => {
   it("formats a plain scaled ingredient, pluralizing the unit", () => {
     const scaled = scaleIngredient(parseIngredientLine("2 cups flour"), 1.5);
-    expect(formatScaledIngredient(scaled)).toBe("3 cups flour (360 g)");
+    expect(formatScaledIngredient(scaled)).toBe("3 cups flour (360 g / 12.7 oz)");
   });
 
   it("formats a scaled range, pluralizing the unit", () => {
     const scaled = scaleIngredient(parseIngredientLine("2-3 tablespoons olive oil"), 2);
-    expect(formatScaledIngredient(scaled)).toBe("4-6 tablespoons olive oil (55 g)");
+    expect(formatScaledIngredient(scaled)).toBe("4-6 tablespoons olive oil (55 g / 1.9 oz)");
   });
 
   it("uses the singular unit when the scaled quantity is exactly 1", () => {
     const scaled = scaleIngredient(parseIngredientLine("2 cups flour"), 0.5);
-    expect(formatScaledIngredient(scaled)).toBe("1 cup flour (120 g)");
+    expect(formatScaledIngredient(scaled)).toBe("1 cup flour (120 g / 4.2 oz)");
   });
 
   it("omits the gram suffix when no weight could be determined", () => {

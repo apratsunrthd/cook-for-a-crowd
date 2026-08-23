@@ -8,6 +8,7 @@ import {
   foodservicePackagesNeeded,
 } from "@/lib/foodservicePackaging";
 import { formatShoppingListItem } from "@/lib/shoppingList";
+import type { PurchaseSuggestion } from "@/lib/shoppingPurchaseAI";
 import type { ShoppingListItem } from "@/lib/types";
 
 const AS_LISTED = "";
@@ -84,17 +85,74 @@ function setBuyAsPreset(eventId: number, itemKey: string, presetId: string) {
   buyAsListeners.forEach((listener) => listener());
 }
 
+// Checked-off state at the store, same rationale and same external-store
+// shape as buyAsCache above -- it needs to survive re-renders and reloads
+// (including reopening the printable view) without touching the event's
+// saved data, since "did I grab this yet on this particular trip" isn't
+// something worth persisting to the database.
+const checkedCache = new Map<number, Record<string, boolean>>();
+let checkedListeners: Array<() => void> = [];
+
+function checkedStorageKey(eventId: number): string {
+  return `cook-for-a-crowd:checked:${eventId}`;
+}
+
+function subscribeChecked(callback: () => void) {
+  checkedListeners.push(callback);
+  return () => {
+    checkedListeners = checkedListeners.filter((listener) => listener !== callback);
+  };
+}
+
+function readCheckedFromStorage(eventId: number): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(checkedStorageKey(eventId));
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return parsed as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+}
+
+function getCheckedSnapshot(eventId: number): Record<string, boolean> {
+  if (!checkedCache.has(eventId)) checkedCache.set(eventId, readCheckedFromStorage(eventId));
+  return checkedCache.get(eventId)!;
+}
+
+const EMPTY_CHECKED: Record<string, boolean> = {};
+
+function getCheckedServerSnapshot(): Record<string, boolean> {
+  return EMPTY_CHECKED;
+}
+
+function toggleChecked(eventId: number, itemKey: string) {
+  const current = getCheckedSnapshot(eventId);
+  const next = { ...current, [itemKey]: !current[itemKey] };
+  checkedCache.set(eventId, next);
+  try {
+    localStorage.setItem(checkedStorageKey(eventId), JSON.stringify(next));
+  } catch {
+    // Storage unavailable -- the check just won't survive a reload.
+  }
+  checkedListeners.forEach((listener) => listener());
+}
+
 export function ShoppingList({
   items,
   eventName,
   eventId,
   showPrintLink = false,
+  purchaseSuggestions = {},
 }: {
   items: ShoppingListItem[];
   eventName: string;
   eventId: number;
   /** Omit on the print page itself -- no point linking to itself. */
   showPrintLink?: boolean;
+  /** AI-suggested realistic purchase quantities for continuous-amount items with no other deterministic answer -- see shoppingPurchaseAI.ts. Keyed by item.key; absent while the suggestion call is still in flight or unavailable. */
+  purchaseSuggestions?: Record<string, PurchaseSuggestion>;
 }) {
   const confirmed = items.filter((i) => !i.needsReview);
   const needsReview = items.filter((i) => i.needsReview);
@@ -102,6 +160,11 @@ export function ShoppingList({
     subscribeBuyAs,
     () => getBuyAsSnapshot(eventId),
     getBuyAsServerSnapshot,
+  );
+  const checked = useSyncExternalStore(
+    subscribeChecked,
+    () => getCheckedSnapshot(eventId),
+    getCheckedServerSnapshot,
   );
 
   return (
@@ -126,19 +189,36 @@ export function ShoppingList({
             const preset = options.find((p) => p.id === presetId);
             const packagesNeeded =
               preset && item.grams !== null ? foodservicePackagesNeeded(item.grams, preset.grams) : null;
+            const purchaseSuggestion = purchaseSuggestions[item.key];
+            const isChecked = checked[item.key] ?? false;
 
             return (
               <li key={item.key}>
                 <div className="flex items-baseline justify-between gap-3">
-                  <span>
-                    {formatShoppingListItem(item)}
-                    {packagesNeeded !== null && (
-                      <span className="text-black/70 dark:text-white/70">
-                        {" "}
-                        &rarr; buy {pluralize(packagesNeeded, preset!.unitLabel)}
-                      </span>
-                    )}
-                  </span>
+                  <label className="flex items-baseline gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleChecked(eventId, item.key)}
+                      className="shrink-0 translate-y-0.5"
+                      aria-label={`Mark ${item.description} as bought`}
+                    />
+                    <span className={isChecked ? "line-through text-black/40 dark:text-white/40" : undefined}>
+                      {formatShoppingListItem(item)}
+                      {packagesNeeded !== null && (
+                        <span className="text-black/70 dark:text-white/70">
+                          {" "}
+                          &rarr; buy {pluralize(packagesNeeded, preset!.unitLabel)}
+                        </span>
+                      )}
+                      {packagesNeeded === null && purchaseSuggestion && (
+                        <span className="italic text-black/50 dark:text-white/50">
+                          {" "}
+                          &rarr; suggested: {purchaseSuggestion.buyQuantity}&times; {purchaseSuggestion.packageLabel}
+                        </span>
+                      )}
+                    </span>
+                  </label>
                   {options.length > 0 && (
                     <select
                       value={presetId}
@@ -159,7 +239,7 @@ export function ShoppingList({
                     long ingredient description next to a long list of dish
                     names on one row was cramped and hard to read. */}
                 {item.sources.length > 0 && (
-                  <div className="text-xs text-black/40 dark:text-white/40 print:hidden">
+                  <div className="text-xs text-black/40 dark:text-white/40 print:hidden pl-6">
                     {item.sources.join(", ")}
                   </div>
                 )}
@@ -171,14 +251,28 @@ export function ShoppingList({
               <li className="pt-2 text-xs font-medium uppercase tracking-wide text-black/50 dark:text-white/50">
                 Double-check these (no quantity found)
               </li>
-              {needsReview.map((item) => (
-                <li key={item.key} className="text-amber-600 dark:text-amber-400">
-                  {formatShoppingListItem(item)}{" "}
-                  <span className="text-xs text-black/40 dark:text-white/40 print:hidden">
-                    ({item.sources.join(", ")})
-                  </span>
-                </li>
-              ))}
+              {needsReview.map((item) => {
+                const isChecked = checked[item.key] ?? false;
+                return (
+                  <li key={item.key} className="text-amber-600 dark:text-amber-400">
+                    <label className="flex items-baseline gap-2 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleChecked(eventId, item.key)}
+                        className="shrink-0 translate-y-0.5"
+                        aria-label={`Mark ${item.description} as bought`}
+                      />
+                      <span className={isChecked ? "line-through opacity-50" : undefined}>
+                        {formatShoppingListItem(item)}{" "}
+                        <span className="text-xs text-black/40 dark:text-white/40 print:hidden">
+                          ({item.sources.join(", ")})
+                        </span>
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
             </>
           )}
         </ul>
