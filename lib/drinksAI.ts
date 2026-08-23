@@ -84,7 +84,6 @@ export async function suggestDrinksWithAI(params: {
     response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 1024,
-      output_config: { effort: "low" },
       tools: [SUGGESTIONS_TOOL],
       tool_choice: { type: "tool", name: "drink_suggestions" },
       messages: [
@@ -113,5 +112,14 @@ export async function suggestDrinksWithAI(params: {
   }
 
   const data = toolUse.input as { drinks: SuggestedDrink[] };
-  return data.drinks.filter((d) => d.name.trim().length > 0 && d.expectedDrinkers > 0 && d.packageSizeOz > 0);
+  return data.drinks.filter(
+    (d) =>
+      d.name.trim().length > 0 &&
+      d.expectedDrinkers > 0 &&
+      d.packageSizeOz > 0 &&
+      typeof d.unitLabel === "string" &&
+      d.unitLabel.length > 0 &&
+      d.unitLabel.length <= 30 &&
+      /^[a-zA-Z\s/]+$/.test(d.unitLabel.trim()),
+  );
 }
