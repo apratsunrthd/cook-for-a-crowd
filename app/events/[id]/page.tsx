@@ -106,12 +106,20 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
 
       <section className="space-y-2">
         <Menu eventName={event.name} eventDate={event.eventDate} dishes={dishes} purchasedItems={purchasedItems} drinks={drinks} />
-        <Link
-          href={`/events/${event.id}/print/menu`}
-          className="text-sm underline text-black/70 dark:text-white/70"
-        >
-          Open printable view &rarr;
-        </Link>
+        <div className="flex gap-4">
+          <Link
+            href={`/events/${event.id}/print/menu`}
+            className="text-sm underline text-black/70 dark:text-white/70"
+          >
+            Open printable menu &rarr;
+          </Link>
+          <Link
+            href={`/events/${event.id}/print/table-cards`}
+            className="text-sm underline text-black/70 dark:text-white/70"
+          >
+            Print table cards &rarr;
+          </Link>
+        </div>
       </section>
 
       {dishes.length > 0 && (
