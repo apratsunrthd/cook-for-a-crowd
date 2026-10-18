@@ -278,3 +278,9 @@ This project was built with [Claude Code](https://claude.com/claude-code) using
 [garrytan/gstack](https://github.com/garrytan/gstack)) for the AI-assisted
 workflow — see `CLAUDE.md` for the setup. That's tooling context, not a
 requirement for running the app itself.
+
+## License
+
+Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You are free to
+use, copy, and modify this project for noncommercial purposes; commercial use
+requires permission.
